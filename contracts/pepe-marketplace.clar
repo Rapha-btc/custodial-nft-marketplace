@@ -24,7 +24,7 @@
 
 ;; Data vars
 (define-data-var contract-paused bool false)
-(define-data-var royalty-percent uint u500) ;; 5% in basis points (500/10000)
+(define-data-var royalty-percent uint u250) ;; 2.5% in basis points (250/10000)
 (define-data-var royalty-recipient principal CONTRACT-OWNER)
 (define-data-var platform-fee uint u250) ;; 2.5% platform fee
 (define-data-var platform-recipient principal CONTRACT-OWNER)
