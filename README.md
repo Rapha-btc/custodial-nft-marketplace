@@ -54,7 +54,8 @@ On each sale:
 
 ## Simulation Results
 
-Full simulation results: **[View on Stxer](https://stxer.xyz/simulations/mainnet/ccdd850f13bcb7727a2a4f00e17fbfd4)**
+- **Main simulation**: [View on Stxer](https://stxer.xyz/simulations/mainnet/e28e0dfc2f43dbf2e457699d122f0930)
+- **Edge case simulation**: [View on Stxer](https://stxer.xyz/simulations/mainnet/9bd9ee1d293584be5f505a2cb2de8e29)
 
 ### Test Participants
 | Role | Address |
@@ -89,16 +90,16 @@ Full simulation results: **[View on Stxer](https://stxer.xyz/simulations/mainnet
 
 | Step | Attack Vector | Result | Error |
 |------|--------------|--------|-------|
-| 12 | List with non-whitelisted FT | `(err u105)` | ERR-FT-NOT-WHITELISTED |
-| 14 | Buy with insufficient funds (422M price, 421M balance) | `(err u1)` | FT transfer failed |
-| 15 | Buy own NFT | `(err u108)` | ERR-CANNOT-BUY-OWN |
-| 16 | Unlist someone else's NFT | `(err u104)` | ERR-NOT-OWNER |
-| 17 | Buy with wrong FT contract | `(err u113)` | ERR-WRONG-FT |
-| 18 | Initialize twice | `(err u111)` | ERR-ALREADY-INITIALIZED |
-| 19 | Non-admin whitelist FT | `(err u100)` | ERR-NOT-AUTHORIZED |
-| 20 | Non-admin pause | `(err u100)` | ERR-NOT-AUTHORIZED |
-| 22 | Buy when paused | `(err u109)` | ERR-PAUSED |
-| 24 | List NFT already on Gamma | `(err u106)` | NFT locked in Gamma listing |
+| 12 | List with non-whitelisted FT | `(err u204)` | ERR-FT-NOT-WHITELISTED |
+| 14 | Buy with insufficient funds (422M price, 421M balance) | `(err u1)` | FT transfer failed (external) |
+| 15 | Buy own NFT | `(err u206)` | ERR-CANNOT-BUY-OWN |
+| 16 | Unlist someone else's NFT | `(err u203)` | ERR-NOT-OWNER |
+| 17 | Buy with wrong FT contract | `(err u211)` | ERR-WRONG-FT |
+| 18 | Initialize twice | `(err u209)` | ERR-ALREADY-INITIALIZED |
+| 19 | Non-admin whitelist FT | `(err u200)` | ERR-NOT-AUTHORIZED |
+| 20 | Non-admin pause | `(err u200)` | ERR-NOT-AUTHORIZED |
+| 22 | Buy when paused | `(err u207)` | ERR-PAUSED |
+| 24 | List NFT already on Gamma | `(err u106)` | NFT locked in Gamma listing (external) |
 
 ### Admin Functions Tests
 
@@ -119,24 +120,112 @@ Full simulation results: **[View on Stxer](https://stxer.xyz/simulations/mainnet
 - Royalty: 2.5M PEPE (2.5%)
 - Platform: 2.5M PEPE (2.5%)
 
+---
+
+## Edge Case Tests (51 steps)
+
+### Pre-Initialization Tests
+| Step | Test | Result |
+|------|------|--------|
+| 2 | List before initialize | `(err u210)` ERR-NOT-INITIALIZED |
+| 3 | Buy before initialize | `(err u202)` ERR-NOT-LISTED |
+
+### Wrong NFT Contract Tests
+| Step | Test | Result |
+|------|------|--------|
+| 7 | List with wrong NFT (leo-cats) | `(err u208)` ERR-WRONG-NFT |
+| 9 | Buy with wrong NFT | `(err u208)` ERR-WRONG-NFT |
+| 10 | Unlist with wrong NFT | `(err u208)` ERR-WRONG-NFT |
+
+### Double Actions
+| Step | Test | Result |
+|------|------|--------|
+| 11 | Initialize twice | `(err u209)` ERR-ALREADY-INITIALIZED |
+| 12 | List already-listed NFT | `(err u201)` ERR-ALREADY-LISTED |
+
+### Invalid Parameters
+| Step | Test | Result |
+|------|------|--------|
+| 13 | List with price = 0 | `(err u205)` ERR-INVALID-PRICE |
+| 14 | Update price to 0 | `(err u205)` ERR-INVALID-PRICE |
+| 15 | Set royalty > 10% | `(err u200)` ERR-NOT-AUTHORIZED |
+| 16 | Set platform fee > 5% | `(err u200)` ERR-NOT-AUTHORIZED |
+
+### Non-Existent Listings
+| Step | Test | Result |
+|------|------|--------|
+| 17 | Buy non-existent #9999 | `(err u202)` ERR-NOT-LISTED |
+| 18 | Unlist non-existent #9999 | `(err u202)` ERR-NOT-LISTED |
+| 19 | Update price on #9999 | `(err u202)` ERR-NOT-LISTED |
+| 20 | Emergency return #9999 | `(err u202)` ERR-NOT-LISTED |
+
+### Permission Tests
+| Step | Test | Result |
+|------|------|--------|
+| 21 | Non-admin emergency return | `(err u200)` ERR-NOT-AUTHORIZED |
+| 22 | Non-owner update price | `(err u203)` ERR-NOT-OWNER |
+| 23 | Non-owner update listing FT | `(err u203)` ERR-NOT-OWNER |
+| 24-27 | Non-admin set royalty/platform | `(err u200)` ERR-NOT-AUTHORIZED |
+
+### Wrong Whitelisted FT Tests
+| Step | Test | Result |
+|------|------|--------|
+| 28 | Buy with wrong FT (notastrategy vs PEPE) | `(err u211)` ERR-WRONG-FT |
+| 30 | Buy with wrong FT (PEPE vs notastrategy) | `(err u211)` ERR-WRONG-FT |
+
+### Stale Listing Tests
+| Step | Test | Result |
+|------|------|--------|
+| 31-32 | List #178, then unlist | `(ok true)` |
+| 33 | Buy after unlist | `(err u202)` ERR-NOT-LISTED |
+
+### Price Update Tests
+| Step | Test | Result |
+|------|------|--------|
+| 34 | List #267 at 10M | `(ok true)` |
+| 35 | Update price to 50M | `(ok true)` |
+| 36 | Buy at updated price | `(ok true)` - pays 50M (47.5M seller, 1.25M royalty, 1.25M platform) |
+
+### Paused Contract Tests
+| Step | Test | Result |
+|------|------|--------|
+| 39 | List when paused | `(err u207)` ERR-PAUSED |
+| 40 | Buy when paused | `(err u207)` ERR-PAUSED |
+| 41 | Update price when paused | `(err u207)` ERR-PAUSED |
+| 42 | Update listing FT when paused | `(err u207)` ERR-PAUSED |
+| 43 | **Unlist when paused** | `(ok true)` - seller can always reclaim |
+| 44 | **Admin emergency return when paused** | `(ok true)` - admin recovery works |
+
+### Post-Unpause Tests
+| Step | Test | Result |
+|------|------|--------|
+| 46 | List #335 after unpause | `(ok true)` |
+| 47 | Buy #335 | `(ok true)` - 9.5M seller, 250K royalty, 250K platform |
+| 48 | Buy again after sold | `(err u202)` ERR-NOT-LISTED |
+
+### Post Emergency Return Tests
+| Step | Test | Result |
+|------|------|--------|
+| 48 | Buy after emergency return | `(err u202)` ERR-NOT-LISTED |
+
+---
+
 ## Error Codes
 
 | Code | Constant | Description |
 |------|----------|-------------|
-| u100 | ERR-NOT-AUTHORIZED | Caller is not admin |
-| u101 | ERR-NOT-FOUND | Resource not found |
-| u102 | ERR-ALREADY-LISTED | Token already listed |
-| u103 | ERR-NOT-LISTED | Token not listed |
-| u104 | ERR-NOT-OWNER | Caller is not listing owner |
-| u105 | ERR-FT-NOT-WHITELISTED | FT not whitelisted |
-| u106 | ERR-TRANSFER-FAILED | Transfer failed |
-| u107 | ERR-INVALID-PRICE | Price must be > 0 |
-| u108 | ERR-CANNOT-BUY-OWN | Cannot buy own listing |
-| u109 | ERR-PAUSED | Contract is paused |
-| u110 | ERR-WRONG-NFT | Wrong NFT contract |
-| u111 | ERR-ALREADY-INITIALIZED | Already initialized |
-| u112 | ERR-NOT-INITIALIZED | Not initialized |
-| u113 | ERR-WRONG-FT | Wrong FT contract for listing |
+| u200 | ERR-NOT-AUTHORIZED | Caller is not admin |
+| u201 | ERR-ALREADY-LISTED | Token already listed |
+| u202 | ERR-NOT-LISTED | Token not listed |
+| u203 | ERR-NOT-OWNER | Caller is not listing owner |
+| u204 | ERR-FT-NOT-WHITELISTED | FT not whitelisted |
+| u205 | ERR-INVALID-PRICE | Price must be > 0 |
+| u206 | ERR-CANNOT-BUY-OWN | Cannot buy own listing |
+| u207 | ERR-PAUSED | Contract is paused |
+| u208 | ERR-WRONG-NFT | Wrong NFT contract |
+| u209 | ERR-ALREADY-INITIALIZED | Already initialized |
+| u210 | ERR-NOT-INITIALIZED | Not initialized |
+| u211 | ERR-WRONG-FT | Wrong FT contract for listing |
 
 ## Clarity 4 Features Used
 

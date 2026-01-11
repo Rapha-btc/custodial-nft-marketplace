@@ -25,10 +25,10 @@ const MARKETPLACE = `${DEPLOYER}.pepe-marketplace`;
 const BITCOIN_PEPE_NFT = "SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ.bitcoin-pepe";
 const PEPE_TOKEN = "SP1Z92MPDQEWZXW36VX71Q25HKF5K2EPCJ304F275.tokensoft-token-v4k68639zxz";
 
-// Wrong NFT - not the initialized one
-const WRONG_NFT = "SP2TT71CXBRDDYP2P8XMVKRFYKRGSMBWCZ6W6FDGT.notastrategy";
-// Another random NFT contract
-const GAMMA_NFT = "SPNWZ5V2TPWGQGVDR6T7B6RQ4XMGZ4PXTEE0VQ0S.gamma-special-edition";
+// Wrong NFT - not the initialized one (actual NFT contract for realistic test)
+const WRONG_NFT = "SP2N959SER36FZ5QT1CX9BR63W3E8X35WQCMBYYWC.leo-cats";
+// Another whitelisted FT for wrong FT tests
+const OTHER_FT = "SP2TT71CXBRDDYP2P8XMVKRFYKRGSMBWCZ6W6FDGT.notastrategy";
 
 const PRICE_10M_PEPE = 10000000000;
 
@@ -36,53 +36,53 @@ async function main() {
   console.log("=== PEPE MARKETPLACE - EDGE CASE TESTS ===\n");
 
   console.log("=== PRE-INITIALIZATION TESTS ===");
-  console.log("1. Try to list before initialization (ERR-NOT-INITIALIZED u112)");
-  console.log("2. Try to buy before initialization (ERR-NOT-LISTED u103)");
+  console.log("1. Try to list before initialization (ERR-NOT-INITIALIZED u210)");
+  console.log("2. Try to buy before initialization (ERR-NOT-LISTED u202)");
   console.log("\n");
 
   console.log("=== WRONG NFT CONTRACT TESTS ===");
   console.log("3. Initialize marketplace");
-  console.log("4. Try to list with wrong NFT contract (ERR-WRONG-NFT u110)");
-  console.log("5. List valid NFT, try to buy with wrong NFT contract (ERR-WRONG-NFT u110)");
-  console.log("6. Try to unlist with wrong NFT contract (ERR-WRONG-NFT u110)");
+  console.log("4. Try to list with wrong NFT contract (ERR-WRONG-NFT u208)");
+  console.log("5. List valid NFT, try to buy with wrong NFT contract (ERR-WRONG-NFT u208)");
+  console.log("6. Try to unlist with wrong NFT contract (ERR-WRONG-NFT u208)");
   console.log("\n");
 
   console.log("=== DOUBLE ACTIONS ===");
-  console.log("7. Try to initialize a second time (ERR-ALREADY-INITIALIZED u111)");
-  console.log("8. List NFT #137, try to list same token again (ERR-ALREADY-LISTED u102)");
+  console.log("7. Try to initialize a second time (ERR-ALREADY-INITIALIZED u209)");
+  console.log("8. List NFT #137, try to list same token again (ERR-ALREADY-LISTED u201)");
   console.log("\n");
 
   console.log("=== INVALID PARAMETERS ===");
-  console.log("9. Try to list with price = 0 (ERR-INVALID-PRICE u107)");
-  console.log("10. Try to update price to 0 (ERR-INVALID-PRICE u107)");
-  console.log("11. Try to set royalty > 10% (ERR-NOT-AUTHORIZED u100)");
-  console.log("12. Try to set platform fee > 5% (ERR-NOT-AUTHORIZED u100)");
+  console.log("9. Try to list with price = 0 (ERR-INVALID-PRICE u205)");
+  console.log("10. Try to update price to 0 (ERR-INVALID-PRICE u205)");
+  console.log("11. Try to set royalty > 10% (ERR-NOT-AUTHORIZED u200)");
+  console.log("12. Try to set platform fee > 5% (ERR-NOT-AUTHORIZED u200)");
   console.log("\n");
 
   console.log("=== NON-EXISTENT LISTINGS ===");
-  console.log("13. Try to buy non-existent listing (ERR-NOT-LISTED u103)");
-  console.log("14. Try to unlist non-existent listing (ERR-NOT-LISTED u103)");
-  console.log("15. Try to update price on non-existent listing (ERR-NOT-LISTED u103)");
-  console.log("16. Try emergency return on non-existent listing (ERR-NOT-LISTED u103)");
+  console.log("13. Try to buy non-existent listing (ERR-NOT-LISTED u202)");
+  console.log("14. Try to unlist non-existent listing (ERR-NOT-LISTED u202)");
+  console.log("15. Try to update price on non-existent listing (ERR-NOT-LISTED u202)");
+  console.log("16. Try emergency return on non-existent listing (ERR-NOT-LISTED u202)");
   console.log("\n");
 
   console.log("=== PERMISSION TESTS ===");
-  console.log("17. Non-admin tries emergency return (ERR-NOT-AUTHORIZED u100)");
-  console.log("18. Non-owner tries to update price (ERR-NOT-OWNER u104)");
-  console.log("19. Non-owner tries to update listing FT (ERR-NOT-OWNER u104)");
-  console.log("20. Non-admin tries to set royalty percent (ERR-NOT-AUTHORIZED u100)");
-  console.log("21. Non-admin tries to set royalty recipient (ERR-NOT-AUTHORIZED u100)");
-  console.log("22. Non-admin tries to set platform fee (ERR-NOT-AUTHORIZED u100)");
-  console.log("23. Non-admin tries to set platform recipient (ERR-NOT-AUTHORIZED u100)");
+  console.log("17. Non-admin tries emergency return (ERR-NOT-AUTHORIZED u200)");
+  console.log("18. Non-owner tries to update price (ERR-NOT-OWNER u203)");
+  console.log("19. Non-owner tries to update listing FT (ERR-NOT-OWNER u203)");
+  console.log("20. Non-admin tries to set royalty percent (ERR-NOT-AUTHORIZED u200)");
+  console.log("21. Non-admin tries to set royalty recipient (ERR-NOT-AUTHORIZED u200)");
+  console.log("22. Non-admin tries to set platform fee (ERR-NOT-AUTHORIZED u200)");
+  console.log("23. Non-admin tries to set platform recipient (ERR-NOT-AUTHORIZED u200)");
   console.log("\n");
 
   console.log("=== WRONG WHITELISTED FT TESTS ===");
-  console.log("24. List for PEPE, buy with notastrategy (ERR-WRONG-FT u113)");
-  console.log("25. List for notastrategy, buy with PEPE (ERR-WRONG-FT u113)");
+  console.log("24. List for PEPE, buy with notastrategy (ERR-WRONG-FT u211)");
+  console.log("25. List for notastrategy, buy with PEPE (ERR-WRONG-FT u211)");
   console.log("\n");
 
   console.log("=== STALE LISTING TESTS ===");
-  console.log("26. List #178, unlist it, then try to buy (ERR-NOT-LISTED u103)");
+  console.log("26. List #178, unlist it, then try to buy (ERR-NOT-LISTED u202)");
   console.log("\n");
 
   console.log("=== PRICE UPDATE TESTS ===");
@@ -92,16 +92,16 @@ async function main() {
 
   console.log("=== PAUSED CONTRACT TESTS ===");
   console.log("28. Pause contract, then try:");
-  console.log("    - list-nft (ERR-PAUSED u109)");
-  console.log("    - buy-nft (ERR-PAUSED u109)");
-  console.log("    - update-price (ERR-PAUSED u109)");
-  console.log("    - update-listing-ft (ERR-PAUSED u109)");
+  console.log("    - list-nft (ERR-PAUSED u207)");
+  console.log("    - buy-nft (ERR-PAUSED u207)");
+  console.log("    - update-price (ERR-PAUSED u207)");
+  console.log("    - update-listing-ft (ERR-PAUSED u207)");
   console.log("    - unlist-nft (OK - seller can always reclaim!)");
   console.log("29. Unpause, verify operations work again");
   console.log("\n");
 
   console.log("=== POST EMERGENCY RETURN TESTS ===");
-  console.log("30. Try to buy NFT after admin-emergency-return (ERR-NOT-LISTED u103)");
+  console.log("30. Try to buy NFT after admin-emergency-return (ERR-NOT-LISTED u202)");
   console.log("\n");
 
   SimulationBuilder.new()
@@ -120,7 +120,7 @@ async function main() {
 
     // ============================================================
     // STEP 1: Try to list BEFORE initialization
-    // Expected: (err u112) ERR-NOT-INITIALIZED
+    // Expected: (err u210) ERR-NOT-INITIALIZED
     // ============================================================
     .withSender(SELLER)
     .addContractCall({
@@ -142,7 +142,7 @@ async function main() {
 
     // ============================================================
     // STEP 2: Try to buy BEFORE initialization (no listings anyway)
-    // Expected: (err u103) ERR-NOT-LISTED
+    // Expected: (err u202) ERR-NOT-LISTED
     // ============================================================
     .withSender(BUYER)
     .addContractCall({
@@ -201,8 +201,8 @@ async function main() {
     })
 
     // ============================================================
-    // STEP 4: Try to list with WRONG NFT contract (notastrategy)
-    // Expected: (err u110) ERR-WRONG-NFT
+    // STEP 4: Try to list with WRONG NFT contract (leo-cats)
+    // Expected: (err u208) ERR-WRONG-NFT
     // ============================================================
     .withSender(SELLER)
     .addContractCall({
@@ -211,8 +211,8 @@ async function main() {
       function_args: [
         uintCV(137),
         contractPrincipalCV(
-          "SP2TT71CXBRDDYP2P8XMVKRFYKRGSMBWCZ6W6FDGT",
-          "notastrategy"
+          "SP2N959SER36FZ5QT1CX9BR63W3E8X35WQCMBYYWC",
+          "leo-cats"
         ), // WRONG NFT CONTRACT!
         contractPrincipalCV(
           "SP1Z92MPDQEWZXW36VX71Q25HKF5K2EPCJ304F275",
@@ -245,7 +245,7 @@ async function main() {
 
     // ============================================================
     // STEP 5b: Try to buy with WRONG NFT contract
-    // Expected: (err u110) ERR-WRONG-NFT
+    // Expected: (err u208) ERR-WRONG-NFT
     // ============================================================
     .withSender(BUYER)
     .addContractCall({
@@ -254,8 +254,8 @@ async function main() {
       function_args: [
         uintCV(137),
         contractPrincipalCV(
-          "SP2TT71CXBRDDYP2P8XMVKRFYKRGSMBWCZ6W6FDGT",
-          "notastrategy"
+          "SP2N959SER36FZ5QT1CX9BR63W3E8X35WQCMBYYWC",
+          "leo-cats"
         ), // WRONG NFT CONTRACT!
         contractPrincipalCV(
           "SP1Z92MPDQEWZXW36VX71Q25HKF5K2EPCJ304F275",
@@ -266,7 +266,7 @@ async function main() {
 
     // ============================================================
     // STEP 6: Try to unlist with WRONG NFT contract
-    // Expected: (err u110) ERR-WRONG-NFT
+    // Expected: (err u208) ERR-WRONG-NFT
     // ============================================================
     .withSender(SELLER)
     .addContractCall({
@@ -275,15 +275,15 @@ async function main() {
       function_args: [
         uintCV(137),
         contractPrincipalCV(
-          "SP2TT71CXBRDDYP2P8XMVKRFYKRGSMBWCZ6W6FDGT",
-          "notastrategy"
+          "SP2N959SER36FZ5QT1CX9BR63W3E8X35WQCMBYYWC",
+          "leo-cats"
         ), // WRONG NFT CONTRACT!
       ],
     })
 
     // ============================================================
     // STEP 7: Try to initialize AGAIN
-    // Expected: (err u111) ERR-ALREADY-INITIALIZED
+    // Expected: (err u209) ERR-ALREADY-INITIALIZED
     // ============================================================
     .withSender(DEPLOYER)
     .addContractCall({
@@ -296,7 +296,7 @@ async function main() {
 
     // ============================================================
     // STEP 8: Try to list same token #137 again (already listed)
-    // Expected: (err u102) ERR-ALREADY-LISTED
+    // Expected: (err u201) ERR-ALREADY-LISTED
     // ============================================================
     .withSender(SELLER)
     .addContractCall({
@@ -318,7 +318,7 @@ async function main() {
 
     // ============================================================
     // STEP 9: Try to list with price = 0
-    // Expected: (err u107) ERR-INVALID-PRICE
+    // Expected: (err u205) ERR-INVALID-PRICE
     // ============================================================
     .addContractCall({
       contract_id: MARKETPLACE,
@@ -339,7 +339,7 @@ async function main() {
 
     // ============================================================
     // STEP 10: Try to update price to 0
-    // Expected: (err u107) ERR-INVALID-PRICE
+    // Expected: (err u205) ERR-INVALID-PRICE
     // ============================================================
     .addContractCall({
       contract_id: MARKETPLACE,
@@ -352,7 +352,7 @@ async function main() {
 
     // ============================================================
     // STEP 11: Try to set royalty > 10% (max is 1000 basis points)
-    // Expected: (err u100) ERR-NOT-AUTHORIZED (the assert uses this error)
+    // Expected: (err u200) ERR-NOT-AUTHORIZED (the assert uses this error)
     // ============================================================
     .withSender(DEPLOYER)
     .addContractCall({
@@ -365,7 +365,7 @@ async function main() {
 
     // ============================================================
     // STEP 12: Try to set platform fee > 5% (max is 500 basis points)
-    // Expected: (err u100) ERR-NOT-AUTHORIZED
+    // Expected: (err u200) ERR-NOT-AUTHORIZED
     // ============================================================
     .addContractCall({
       contract_id: MARKETPLACE,
@@ -377,7 +377,7 @@ async function main() {
 
     // ============================================================
     // STEP 13: Try to buy non-existent listing (token #9999)
-    // Expected: (err u103) ERR-NOT-LISTED
+    // Expected: (err u202) ERR-NOT-LISTED
     // ============================================================
     .withSender(BUYER)
     .addContractCall({
@@ -398,7 +398,7 @@ async function main() {
 
     // ============================================================
     // STEP 14: Try to unlist non-existent listing (token #9999)
-    // Expected: (err u103) ERR-NOT-LISTED
+    // Expected: (err u202) ERR-NOT-LISTED
     // ============================================================
     .withSender(SELLER)
     .addContractCall({
@@ -415,7 +415,7 @@ async function main() {
 
     // ============================================================
     // STEP 15: Try to update price on non-existent listing
-    // Expected: (err u103) ERR-NOT-LISTED
+    // Expected: (err u202) ERR-NOT-LISTED
     // ============================================================
     .addContractCall({
       contract_id: MARKETPLACE,
@@ -428,7 +428,7 @@ async function main() {
 
     // ============================================================
     // STEP 16: Try emergency return on non-existent listing
-    // Expected: (err u103) ERR-NOT-LISTED
+    // Expected: (err u202) ERR-NOT-LISTED
     // ============================================================
     .withSender(DEPLOYER)
     .addContractCall({
@@ -445,7 +445,7 @@ async function main() {
 
     // ============================================================
     // STEP 17: Non-admin tries emergency return on valid listing
-    // Expected: (err u100) ERR-NOT-AUTHORIZED
+    // Expected: (err u200) ERR-NOT-AUTHORIZED
     // ============================================================
     .withSender(RANDOM_USER)
     .addContractCall({
@@ -462,7 +462,7 @@ async function main() {
 
     // ============================================================
     // STEP 18: Non-owner tries to update price
-    // Expected: (err u104) ERR-NOT-OWNER
+    // Expected: (err u203) ERR-NOT-OWNER
     // ============================================================
     .addContractCall({
       contract_id: MARKETPLACE,
@@ -475,7 +475,7 @@ async function main() {
 
     // ============================================================
     // STEP 19: Non-owner tries to update listing FT
-    // Expected: (err u104) ERR-NOT-OWNER
+    // Expected: (err u203) ERR-NOT-OWNER
     // ============================================================
     .addContractCall({
       contract_id: MARKETPLACE,
@@ -492,7 +492,7 @@ async function main() {
 
     // ============================================================
     // STEP 20: Non-admin tries to set royalty percent
-    // Expected: (err u100) ERR-NOT-AUTHORIZED
+    // Expected: (err u200) ERR-NOT-AUTHORIZED
     // ============================================================
     .addContractCall({
       contract_id: MARKETPLACE,
@@ -504,7 +504,7 @@ async function main() {
 
     // ============================================================
     // STEP 21: Non-admin tries to set royalty recipient
-    // Expected: (err u100) ERR-NOT-AUTHORIZED
+    // Expected: (err u200) ERR-NOT-AUTHORIZED
     // ============================================================
     .addContractCall({
       contract_id: MARKETPLACE,
@@ -516,7 +516,7 @@ async function main() {
 
     // ============================================================
     // STEP 22: Non-admin tries to set platform fee
-    // Expected: (err u100) ERR-NOT-AUTHORIZED
+    // Expected: (err u200) ERR-NOT-AUTHORIZED
     // ============================================================
     .addContractCall({
       contract_id: MARKETPLACE,
@@ -528,7 +528,7 @@ async function main() {
 
     // ============================================================
     // STEP 23: Non-admin tries to set platform recipient
-    // Expected: (err u100) ERR-NOT-AUTHORIZED
+    // Expected: (err u200) ERR-NOT-AUTHORIZED
     // ============================================================
     .addContractCall({
       contract_id: MARKETPLACE,
@@ -542,7 +542,7 @@ async function main() {
     // STEP 24: Buy with WRONG whitelisted FT
     // Both PEPE and notastrategy are whitelisted, but listing is for PEPE
     // Buyer tries to pay with notastrategy
-    // Expected: (err u113) ERR-WRONG-FT
+    // Expected: (err u211) ERR-WRONG-FT
     // ============================================================
     .withSender(BUYER)
     .addContractCall({
@@ -563,7 +563,7 @@ async function main() {
 
     // ============================================================
     // STEP 25: List #139 for notastrategy, try buy with PEPE
-    // Expected: (err u113) ERR-WRONG-FT
+    // Expected: (err u211) ERR-WRONG-FT
     // ============================================================
     .withSender(SELLER)
     .addContractCall({
@@ -602,7 +602,7 @@ async function main() {
 
     // ============================================================
     // STEP 26: List #178, unlist it, then try to buy
-    // Expected: (err u103) ERR-NOT-LISTED
+    // Expected: (err u202) ERR-NOT-LISTED
     // ============================================================
     .withSender(SELLER)
     .addContractCall({
@@ -742,13 +742,13 @@ async function main() {
     })
 
     // 28a: Try to list when paused
-    // Expected: (err u109) ERR-PAUSED
+    // Expected: (err u207) ERR-PAUSED
     .withSender(SELLER)
     .addContractCall({
       contract_id: MARKETPLACE,
       function_name: "list-nft",
       function_args: [
-        uintCV(334),
+        uintCV(335),
         contractPrincipalCV(
           "SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ",
           "bitcoin-pepe"
@@ -762,7 +762,7 @@ async function main() {
     })
 
     // 28b: Try to buy when paused
-    // Expected: (err u109) ERR-PAUSED
+    // Expected: (err u207) ERR-PAUSED
     .withSender(BUYER)
     .addContractCall({
       contract_id: MARKETPLACE,
@@ -781,7 +781,7 @@ async function main() {
     })
 
     // 28c: Try to update price when paused
-    // Expected: (err u109) ERR-PAUSED
+    // Expected: (err u207) ERR-PAUSED
     .withSender(SELLER)
     .addContractCall({
       contract_id: MARKETPLACE,
@@ -793,7 +793,7 @@ async function main() {
     })
 
     // 28d: Try to update listing FT when paused
-    // Expected: (err u109) ERR-PAUSED
+    // Expected: (err u207) ERR-PAUSED
     .addContractCall({
       contract_id: MARKETPLACE,
       function_name: "update-listing-ft",
@@ -855,7 +855,7 @@ async function main() {
       contract_id: MARKETPLACE,
       function_name: "list-nft",
       function_args: [
-        uintCV(334),
+        uintCV(335),
         contractPrincipalCV(
           "SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ",
           "bitcoin-pepe"
@@ -874,7 +874,7 @@ async function main() {
       contract_id: MARKETPLACE,
       function_name: "buy-nft",
       function_args: [
-        uintCV(334),
+        uintCV(335),
         contractPrincipalCV(
           "SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ",
           "bitcoin-pepe"
@@ -889,7 +889,7 @@ async function main() {
     // ============================================================
     // STEP 30: Try to buy NFT after admin-emergency-return
     // #137 was emergency-returned in step 28f, listing is deleted
-    // Expected: (err u103) ERR-NOT-LISTED
+    // Expected: (err u202) ERR-NOT-LISTED
     // ============================================================
     .addContractCall({
       contract_id: MARKETPLACE,
