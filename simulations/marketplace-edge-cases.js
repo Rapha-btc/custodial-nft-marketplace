@@ -85,6 +85,11 @@ async function main() {
   console.log("26. List #178, unlist it, then try to buy (ERR-NOT-LISTED u103)");
   console.log("\n");
 
+  console.log("=== PRICE UPDATE TESTS ===");
+  console.log("27. List #267 at 10M, update to 50M, buy pays 50M (ok true)");
+  console.log("    - Verifies buyer pays UPDATED price, not original");
+  console.log("\n");
+
   SimulationBuilder.new()
     // ============================================================
     // Deploy marketplace contract
@@ -623,6 +628,63 @@ async function main() {
       function_name: "buy-nft",
       function_args: [
         uintCV(178), // Was listed then unlisted!
+        contractPrincipalCV(
+          "SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ",
+          "bitcoin-pepe"
+        ),
+        contractPrincipalCV(
+          "SP1Z92MPDQEWZXW36VX71Q25HKF5K2EPCJ304F275",
+          "tokensoft-token-v4k68639zxz"
+        ),
+      ],
+    })
+
+    // ============================================================
+    // STEP 27: List at 10M, update to 50M, verify buy pays 50M
+    // This verifies buyer pays the UPDATED price
+    // ============================================================
+
+    // 27a: Seller lists #267 at 10M PEPE
+    .withSender(SELLER)
+    .addContractCall({
+      contract_id: MARKETPLACE,
+      function_name: "list-nft",
+      function_args: [
+        uintCV(267),
+        contractPrincipalCV(
+          "SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ",
+          "bitcoin-pepe"
+        ),
+        contractPrincipalCV(
+          "SP1Z92MPDQEWZXW36VX71Q25HKF5K2EPCJ304F275",
+          "tokensoft-token-v4k68639zxz"
+        ),
+        uintCV(PRICE_10M_PEPE), // Original: 10M PEPE
+      ],
+    })
+
+    // 27b: Seller updates price to 50M PEPE
+    .addContractCall({
+      contract_id: MARKETPLACE,
+      function_name: "update-price",
+      function_args: [
+        uintCV(267),
+        uintCV(50000000000), // Updated: 50M PEPE
+      ],
+    })
+
+    // 27c: Buyer purchases at UPDATED price (50M PEPE)
+    // Expected: (ok true) - buyer pays 50M, not 10M
+    // Fee breakdown at 50M:
+    //   - Royalty (2.5%): 1.25M PEPE
+    //   - Platform (2.5%): 1.25M PEPE
+    //   - Seller (95%): 47.5M PEPE
+    .withSender(BUYER)
+    .addContractCall({
+      contract_id: MARKETPLACE,
+      function_name: "buy-nft",
+      function_args: [
+        uintCV(267),
         contractPrincipalCV(
           "SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ",
           "bitcoin-pepe"
