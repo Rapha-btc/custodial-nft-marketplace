@@ -8,6 +8,7 @@
 
 ;; Constants
 (define-constant CONTRACT-OWNER tx-sender)
+
 (define-constant ERR-NOT-AUTHORIZED (err u100))
 (define-constant ERR-NOT-FOUND (err u101))
 (define-constant ERR-ALREADY-LISTED (err u102))
@@ -21,6 +22,7 @@
 (define-constant ERR-WRONG-NFT (err u110))
 (define-constant ERR-ALREADY-INITIALIZED (err u111))
 (define-constant ERR-NOT-INITIALIZED (err u112))
+(define-constant ERR-WRONG-FT (err u113))
 
 ;; Data vars
 (define-data-var contract-paused bool false)
@@ -63,13 +65,14 @@
   (begin
     (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
     (var-set contract-paused paused)
+    (print {event: "contract-paused", paused: paused})
     (ok true)))
 
-(define-public (whitelist-ft (ft-contract principal) (whitelisted bool))
+(define-public (whitelist-ft (ft <ft-trait>) (whitelisted bool))
   (begin
     (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
-    (map-set whitelisted-fts ft-contract whitelisted)
-    (print {event: "ft-whitelist-update", ft-contract: ft-contract, whitelisted: whitelisted})
+    (map-set whitelisted-fts (contract-of ft) whitelisted)
+    (print {event: "ft-whitelist-update", ft-contract: (contract-of ft), whitelisted: whitelisted})
     (ok true)))
 
 (define-public (set-royalty-percent (percent uint))
@@ -77,12 +80,14 @@
     (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
     (asserts! (<= percent u1000) ERR-NOT-AUTHORIZED) ;; Max 10%
     (var-set royalty-percent percent)
+    (print {event: "royalty-percent-updated", percent: percent})
     (ok true)))
 
 (define-public (set-royalty-recipient (recipient principal))
   (begin
     (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
     (var-set royalty-recipient recipient)
+    (print {event: "royalty-recipient-updated", recipient: recipient})
     (ok true)))
 
 (define-public (set-platform-fee (fee uint))
@@ -90,12 +95,14 @@
     (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
     (asserts! (<= fee u500) ERR-NOT-AUTHORIZED) ;; Max 5%
     (var-set platform-fee fee)
+    (print {event: "platform-fee-updated", fee: fee})
     (ok true)))
 
 (define-public (set-platform-recipient (recipient principal))
   (begin
     (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
     (var-set platform-recipient recipient)
+    (print {event: "platform-recipient-updated", recipient: recipient})
     (ok true)))
 
 ;; ============================================
@@ -194,7 +201,7 @@
 
     ;; Transfer NFT back to seller - Clarity 4: as-contract? with NFT allowance
     (try! (as-contract? ((with-nft (contract-of nft-contract) "*" (list token-id)))
-      (try! (contract-call? nft-contract transfer token-id tx-sender seller))))
+      (try! (contract-call? nft-contract transfer token-id current-contract seller))))
 
     ;; Remove listing
     (map-delete listings token-id)
@@ -216,7 +223,7 @@
   )
     (asserts! (check-nft-allowed nft-contract) ERR-WRONG-NFT)
     (asserts! (not (var-get contract-paused)) ERR-PAUSED)
-    (asserts! (is-eq (contract-of ft-contract) listing-ft) ERR-FT-NOT-WHITELISTED)
+    (asserts! (is-eq (contract-of ft-contract) listing-ft) ERR-WRONG-FT)
     (asserts! (not (is-eq buyer seller)) ERR-CANNOT-BUY-OWN)
 
     ;; Transfer FT from buyer to seller (minus fees)
@@ -236,7 +243,7 @@
 
     ;; Transfer NFT from contract to buyer - Clarity 4: as-contract? with NFT allowance
     (try! (as-contract? ((with-nft (contract-of nft-contract) "*" (list token-id)))
-      (try! (contract-call? nft-contract transfer token-id tx-sender buyer))))
+      (try! (contract-call? nft-contract transfer token-id current-contract buyer))))
 
     ;; Remove listing
     (map-delete listings token-id)
@@ -264,7 +271,7 @@
 
     ;; Transfer NFT back to seller
     (try! (as-contract? ((with-nft (contract-of nft-contract) "*" (list token-id)))
-      (try! (contract-call? nft-contract transfer token-id tx-sender seller))))
+      (try! (contract-call? nft-contract transfer token-id current-contract seller))))
 
     ;; Remove listing
     (map-delete listings token-id)
