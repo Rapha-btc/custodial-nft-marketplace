@@ -81,6 +81,10 @@ async function main() {
   console.log("25. List for notastrategy, buy with PEPE (ERR-WRONG-FT u113)");
   console.log("\n");
 
+  console.log("=== STALE LISTING TESTS ===");
+  console.log("26. List #178, unlist it, then try to buy (ERR-NOT-LISTED u103)");
+  console.log("\n");
+
   SimulationBuilder.new()
     // ============================================================
     // Deploy marketplace contract
@@ -574,6 +578,59 @@ async function main() {
           "SP1Z92MPDQEWZXW36VX71Q25HKF5K2EPCJ304F275",
           "tokensoft-token-v4k68639zxz"
         ), // WRONG FT - listing is for notastrategy, not PEPE!
+      ],
+    })
+
+    // ============================================================
+    // STEP 26: List #178, unlist it, then try to buy
+    // Expected: (err u103) ERR-NOT-LISTED
+    // ============================================================
+    .withSender(SELLER)
+    .addContractCall({
+      contract_id: MARKETPLACE,
+      function_name: "list-nft",
+      function_args: [
+        uintCV(178),
+        contractPrincipalCV(
+          "SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ",
+          "bitcoin-pepe"
+        ),
+        contractPrincipalCV(
+          "SP1Z92MPDQEWZXW36VX71Q25HKF5K2EPCJ304F275",
+          "tokensoft-token-v4k68639zxz"
+        ),
+        uintCV(PRICE_10M_PEPE),
+      ],
+    })
+
+    // Seller unlists #178
+    .addContractCall({
+      contract_id: MARKETPLACE,
+      function_name: "unlist-nft",
+      function_args: [
+        uintCV(178),
+        contractPrincipalCV(
+          "SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ",
+          "bitcoin-pepe"
+        ),
+      ],
+    })
+
+    // Buyer tries to buy #178 which was unlisted
+    .withSender(BUYER)
+    .addContractCall({
+      contract_id: MARKETPLACE,
+      function_name: "buy-nft",
+      function_args: [
+        uintCV(178), // Was listed then unlisted!
+        contractPrincipalCV(
+          "SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ",
+          "bitcoin-pepe"
+        ),
+        contractPrincipalCV(
+          "SP1Z92MPDQEWZXW36VX71Q25HKF5K2EPCJ304F275",
+          "tokensoft-token-v4k68639zxz"
+        ),
       ],
     })
 
