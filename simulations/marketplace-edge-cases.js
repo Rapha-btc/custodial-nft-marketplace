@@ -100,6 +100,10 @@ async function main() {
   console.log("29. Unpause, verify operations work again");
   console.log("\n");
 
+  console.log("=== POST EMERGENCY RETURN TESTS ===");
+  console.log("30. Try to buy NFT after admin-emergency-return (ERR-NOT-LISTED u103)");
+  console.log("\n");
+
   SimulationBuilder.new()
     // ============================================================
     // Deploy marketplace contract
@@ -871,6 +875,27 @@ async function main() {
       function_name: "buy-nft",
       function_args: [
         uintCV(334),
+        contractPrincipalCV(
+          "SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ",
+          "bitcoin-pepe"
+        ),
+        contractPrincipalCV(
+          "SP1Z92MPDQEWZXW36VX71Q25HKF5K2EPCJ304F275",
+          "tokensoft-token-v4k68639zxz"
+        ),
+      ],
+    })
+
+    // ============================================================
+    // STEP 30: Try to buy NFT after admin-emergency-return
+    // #137 was emergency-returned in step 28f, listing is deleted
+    // Expected: (err u103) ERR-NOT-LISTED
+    // ============================================================
+    .addContractCall({
+      contract_id: MARKETPLACE,
+      function_name: "buy-nft",
+      function_args: [
+        uintCV(137), // Was emergency-returned, no longer listed!
         contractPrincipalCV(
           "SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ",
           "bitcoin-pepe"
