@@ -56,6 +56,7 @@ On each sale:
 
 - **Main simulation**: [View on Stxer](https://stxer.xyz/simulations/mainnet/e28e0dfc2f43dbf2e457699d122f0930)
 - **Edge case simulation**: [View on Stxer](https://stxer.xyz/simulations/mainnet/9bd9ee1d293584be5f505a2cb2de8e29)
+- **FT un-whitelist test**: [View on Stxer](https://stxer.xyz/simulations/mainnet/994deff93fcf015b51380eaac09029f8)
 
 ### Test Participants
 | Role | Address |
@@ -210,6 +211,33 @@ On each sale:
 
 ---
 
+## FT Un-Whitelist Tests (12 steps)
+
+Tests that un-whitelisting an FT blocks purchases but sellers can still reclaim their NFTs.
+
+| Step | Action | Result | Notes |
+|------|--------|--------|-------|
+| 1 | Deploy contract | Success | |
+| 2 | Initialize with bitcoin-pepe | `(ok true)` | |
+| 3 | Whitelist PEPE token | `(ok true)` | |
+| 4 | Seller lists NFT #137 | `(ok true)` | NFT transferred to contract |
+| 5 | Admin un-whitelists PEPE | `(ok true)` | |
+| 6 | **Buyer tries to buy** | `(err u204)` | ERR-FT-NOT-WHITELISTED - blocked! |
+| 7 | **Seller unlists** | `(ok true)` | Seller can always reclaim NFT |
+| 8 | Admin re-whitelists PEPE | `(ok true)` | |
+| 9 | Seller lists NFT #137 again | `(ok true)` | |
+| 10 | Buyer buys NFT #137 | `(ok true)` | Works after re-whitelist |
+| 11 | Admin un-whitelists PEPE | `(ok true)` | |
+| 12 | **Seller tries to list #139** | `(err u204)` | New listings also blocked |
+
+**Key behaviors verified:**
+- Purchases blocked when FT is un-whitelisted (protects buyers)
+- Sellers can always unlist and reclaim NFTs (prevents lockup)
+- New listings blocked with un-whitelisted FTs
+- Purchases work again after FT is re-whitelisted
+
+---
+
 ## Error Codes
 
 | Code | Constant | Description |
@@ -252,6 +280,9 @@ npm run simul
 
 # Run edge case simulation
 npm run simul:edge
+
+# Run FT un-whitelist test
+node simulations/ft-unwhitelist-test.js
 ```
 
 ## Deployment

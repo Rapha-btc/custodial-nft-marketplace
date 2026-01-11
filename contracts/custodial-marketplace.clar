@@ -186,6 +186,7 @@
     (asserts! (check-nft-allowed nft-contract) ERR-WRONG-NFT)
     (asserts! (not (var-get contract-paused)) ERR-PAUSED)
     (asserts! (is-eq (contract-of ft-contract) listing-ft) ERR-WRONG-FT)
+    (asserts! (is-ft-whitelisted listing-ft) ERR-FT-NOT-WHITELISTED)
     (asserts! (not (is-eq buyer seller)) ERR-CANNOT-BUY-OWN)
 
     (try! (contract-call? ft-contract transfer seller-amount buyer seller none))
