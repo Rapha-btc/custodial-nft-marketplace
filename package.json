@@ -8,7 +8,8 @@
     "test": "vitest run",
     "test:report": "vitest run -- --coverage --costs",
     "test:watch": "chokidar \"tests/**/*.ts\" \"contracts/**/*.clar\" -c \"npm run test:report\"",
-    "simul": "node simulations/marketplace-test.js"
+    "simul": "node simulations/marketplace-test.js",
+    "simul:edge": "node simulations/marketplace-edge-cases.js"
   },
   "author": "",
   "license": "ISC",
