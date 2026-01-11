@@ -90,6 +90,16 @@ async function main() {
   console.log("    - Verifies buyer pays UPDATED price, not original");
   console.log("\n");
 
+  console.log("=== PAUSED CONTRACT TESTS ===");
+  console.log("28. Pause contract, then try:");
+  console.log("    - list-nft (ERR-PAUSED u109)");
+  console.log("    - buy-nft (ERR-PAUSED u109)");
+  console.log("    - update-price (ERR-PAUSED u109)");
+  console.log("    - update-listing-ft (ERR-PAUSED u109)");
+  console.log("    - unlist-nft (OK - seller can always reclaim!)");
+  console.log("29. Unpause, verify operations work again");
+  console.log("\n");
+
   SimulationBuilder.new()
     // ============================================================
     // Deploy marketplace contract
@@ -697,6 +707,182 @@ async function main() {
     })
 
     // ============================================================
+    // STEP 28: Pause contract and try all public functions
+    // ============================================================
+
+    // First, list #274 so we have something to test with
+    .withSender(SELLER)
+    .addContractCall({
+      contract_id: MARKETPLACE,
+      function_name: "list-nft",
+      function_args: [
+        uintCV(274),
+        contractPrincipalCV(
+          "SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ",
+          "bitcoin-pepe"
+        ),
+        contractPrincipalCV(
+          "SP1Z92MPDQEWZXW36VX71Q25HKF5K2EPCJ304F275",
+          "tokensoft-token-v4k68639zxz"
+        ),
+        uintCV(PRICE_10M_PEPE),
+      ],
+    })
+
+    // Admin pauses contract
+    .withSender(DEPLOYER)
+    .addContractCall({
+      contract_id: MARKETPLACE,
+      function_name: "set-paused",
+      function_args: [boolCV(true)],
+    })
+
+    // 28a: Try to list when paused
+    // Expected: (err u109) ERR-PAUSED
+    .withSender(SELLER)
+    .addContractCall({
+      contract_id: MARKETPLACE,
+      function_name: "list-nft",
+      function_args: [
+        uintCV(334),
+        contractPrincipalCV(
+          "SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ",
+          "bitcoin-pepe"
+        ),
+        contractPrincipalCV(
+          "SP1Z92MPDQEWZXW36VX71Q25HKF5K2EPCJ304F275",
+          "tokensoft-token-v4k68639zxz"
+        ),
+        uintCV(PRICE_10M_PEPE),
+      ],
+    })
+
+    // 28b: Try to buy when paused
+    // Expected: (err u109) ERR-PAUSED
+    .withSender(BUYER)
+    .addContractCall({
+      contract_id: MARKETPLACE,
+      function_name: "buy-nft",
+      function_args: [
+        uintCV(274),
+        contractPrincipalCV(
+          "SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ",
+          "bitcoin-pepe"
+        ),
+        contractPrincipalCV(
+          "SP1Z92MPDQEWZXW36VX71Q25HKF5K2EPCJ304F275",
+          "tokensoft-token-v4k68639zxz"
+        ),
+      ],
+    })
+
+    // 28c: Try to update price when paused
+    // Expected: (err u109) ERR-PAUSED
+    .withSender(SELLER)
+    .addContractCall({
+      contract_id: MARKETPLACE,
+      function_name: "update-price",
+      function_args: [
+        uintCV(274),
+        uintCV(PRICE_10M_PEPE * 2),
+      ],
+    })
+
+    // 28d: Try to update listing FT when paused
+    // Expected: (err u109) ERR-PAUSED
+    .addContractCall({
+      contract_id: MARKETPLACE,
+      function_name: "update-listing-ft",
+      function_args: [
+        uintCV(274),
+        contractPrincipalCV(
+          "SP1Z92MPDQEWZXW36VX71Q25HKF5K2EPCJ304F275",
+          "tokensoft-token-v4k68639zxz"
+        ),
+        uintCV(PRICE_10M_PEPE * 3),
+      ],
+    })
+
+    // 28e: Unlist when paused - THIS SHOULD WORK!
+    // Seller can always reclaim their NFT even when paused
+    // Expected: (ok true)
+    .addContractCall({
+      contract_id: MARKETPLACE,
+      function_name: "unlist-nft",
+      function_args: [
+        uintCV(274),
+        contractPrincipalCV(
+          "SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ",
+          "bitcoin-pepe"
+        ),
+      ],
+    })
+
+    // 28f: Admin emergency return works when paused
+    // First re-list #274 (contract still paused, so this should fail)
+    // Actually, we just unlisted #274, and listing is blocked when paused
+    // So let's just verify emergency return works on #137 which is still listed
+    // Expected: (ok true) - admin functions work when paused
+    .withSender(DEPLOYER)
+    .addContractCall({
+      contract_id: MARKETPLACE,
+      function_name: "admin-emergency-return",
+      function_args: [
+        uintCV(137),
+        contractPrincipalCV(
+          "SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ",
+          "bitcoin-pepe"
+        ),
+      ],
+    })
+
+    // ============================================================
+    // STEP 29: Unpause and verify operations work again
+    // ============================================================
+    .addContractCall({
+      contract_id: MARKETPLACE,
+      function_name: "set-paused",
+      function_args: [boolCV(false)],
+    })
+
+    // List #334 should work now
+    .withSender(SELLER)
+    .addContractCall({
+      contract_id: MARKETPLACE,
+      function_name: "list-nft",
+      function_args: [
+        uintCV(334),
+        contractPrincipalCV(
+          "SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ",
+          "bitcoin-pepe"
+        ),
+        contractPrincipalCV(
+          "SP1Z92MPDQEWZXW36VX71Q25HKF5K2EPCJ304F275",
+          "tokensoft-token-v4k68639zxz"
+        ),
+        uintCV(PRICE_10M_PEPE),
+      ],
+    })
+
+    // Buy #334 should work now
+    .withSender(BUYER)
+    .addContractCall({
+      contract_id: MARKETPLACE,
+      function_name: "buy-nft",
+      function_args: [
+        uintCV(334),
+        contractPrincipalCV(
+          "SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ",
+          "bitcoin-pepe"
+        ),
+        contractPrincipalCV(
+          "SP1Z92MPDQEWZXW36VX71Q25HKF5K2EPCJ304F275",
+          "tokensoft-token-v4k68639zxz"
+        ),
+      ],
+    })
+
+    // ============================================================
     // CLEANUP: Successful operations to verify contract still works
     // ============================================================
 
@@ -714,19 +900,7 @@ async function main() {
       ],
     })
 
-    // Seller unlists #137 properly
-    .withSender(SELLER)
-    .addContractCall({
-      contract_id: MARKETPLACE,
-      function_name: "unlist-nft",
-      function_args: [
-        uintCV(137),
-        contractPrincipalCV(
-          "SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ",
-          "bitcoin-pepe"
-        ),
-      ],
-    })
+    // Note: #137 was already returned via admin-emergency-return in step 28f
 
     // Admin can still set valid royalty (5%)
     .withSender(DEPLOYER)
