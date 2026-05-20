@@ -226,11 +226,91 @@ this run are:
   first. Both paths reject the buy correctly; only the error message
   differs slightly. Not worth fixing.
 
+## Router-wrapper variant (fakfun-nfts-core routed)
+
+The previous two sims call the standalone custodial marketplace
+directly. To let L/X wallets buy/sell dawg-tails NFTs **through
+`fakfun-nfts-core`** (so the activity logs into core's print events
+and fakfun's existing chainhook indexer picks it up), deploy the
+**`lambda-nft-marketplace`** template as the wrapper. The lambda
+template *is* the fakfun-style wrapper — it conforms to
+`fakfun-nftmarket-trait` and self-registers with core via hash
+verification when `initialize` is called.
+
+### Sim — `simulations/dawg-tails-router-wrapper.js`
+
+**URL:** https://stxer.xyz/simulations/mainnet/ee5aa8c973d1ec07a5868c27a885696c
+**Block:** 8,029,043
+**Steps:** 12 / 12 `(ok true)`
+
+| # | Sender | Action | Result |
+|---|--------|--------|--------|
+| 0 | DEPLOYER | Deploy `lambda-nft-marketplace` (source-of-truth for hash) | ✅ |
+| 1 | DEPLOYER | `fakfun-nfts-core.set-verified-contract(lambda, none)` — auto-hash mode | ✅ |
+| 2 | DEPLOYER | Deploy `dawg-tails-marketplace` (identical source = identical hash) | ✅ |
+| 3 | DEPLOYER | `dawg-tails-marketplace.initialize(dawg-tails-collection, "Dawg Tails")` — self-registers on core | ✅ |
+| 4 | DEPLOYER | `dawg-tails-marketplace.whitelist-ft(dawgpool, true)` | ✅ |
+| 5 | SELLER1 | **`fakfun-nfts-core.list-nft(wrapper, #2, dawg-tails, dawgpool, 100)`** | ✅ |
+| 6 | SELLER1 | `fakfun-nfts-core.list-nft(wrapper, #4, …, 200)` | ✅ |
+| 7 | SELLER2 | `fakfun-nfts-core.list-nft(wrapper, #3, …, 300)` | ✅ |
+| 8 | BUYER | **`fakfun-nfts-core.buy-nft(wrapper, #2, …)`** | ✅ |
+| 9 | SELLER1 | `fakfun-nfts-core.update-price(wrapper, #4, 250)` | ✅ |
+| 10 | SELLER1 | `fakfun-nfts-core.unlist-nft(wrapper, #4, …)` | ✅ |
+| 11 | BUYER | `fakfun-nfts-core.buy-nft(wrapper, #3, …)` | ✅ |
+
+### Event-level confirmation
+
+Step 5 (`list-nft` via core) emitted both layers' print events:
+
+```
+nft_transfer_event                                         (NFT → marketplace custody)
+contract_event  SPV…dawg-tails-marketplace                 (wrapper's own "nft-listed" print)
+contract_event  SPV…fakfun-nfts-core                       (core's "nft-listed" router print)
+```
+
+Step 8 (`buy-nft` via core) emitted the full chain:
+
+```
+ft_transfer_event   ::PEGGY                                (seller 95%)
+ft_transfer_event   ::PEGGY                                (royalty 2.5%)
+ft_transfer_event   ::PEGGY                                (platform 2.5%)
+nft_transfer_event  the-dawg-tails-collection              (marketplace → buyer)
+contract_event      SPV…dawg-tails-marketplace             (wrapper's "nft-sold" print)
+contract_event      SPV…fakfun-nfts-core                   (core's "nft-sold" router print)
+```
+
+The double-print pattern is what fakfun's existing pepe + froggy
+markets emit. Confirms the dawg-tails wrapper is indistinguishable
+from a first-party fakfun marketplace as far as the indexer is
+concerned.
+
+### Mainnet deploy plan (if you ship this)
+
+1. As `SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22` (fakfun deployer):
+   - Deploy `lambda-nft-marketplace` (one-time, source-of-truth)
+   - Call `fakfun-nfts-core.set-verified-contract(lambda, none)`
+2. As anyone (the marketplace owner — pick a deployer):
+   - Deploy `dawg-tails-marketplace` with identical source as lambda
+   - Call `dawg-tails-marketplace.initialize(the-dawg-tails-collection, "Dawg Tails")`
+3. As the dawg-tails-marketplace owner:
+   - Call `whitelist-ft(dawgpool-stxcity, true)`
+   - Optionally `set-royalty-recipient` / `set-platform-recipient`
+
+After step 3, L/X users (and anyone else) can list/buy/sell dawg-tails
+NFTs through `fakfun-nfts-core` and the fakfun UI will see them.
+
 ## Files
 
 - `simulations/dawg-tails-marketplace-test.js` — initial 29-step sim
-- `simulations/dawg-tails-hammer.js` — full 38-step coverage sim
+  (direct marketplace, no router)
+- `simulations/dawg-tails-hammer.js` — 38-step full-coverage sim
+  (direct marketplace, no router)
+- `simulations/dawg-tails-router-wrapper.js` — 12-step routed sim
+  (through fakfun-nfts-core via lambda template)
+- `contracts/lambda-nft-marketplace.clar` — copied from fakfun-core;
+  used as both the source-of-truth and the dawg-tails clone source
 - `simulations/find-dawg-owners.mjs` — small helper that grouped chain
   ownership of all 26 dawg-tails NFTs to pick a multi-seller scenario
-- `contracts/pepe-marketplace.clar` — the template used (NOT
-  `custodial-marketplace.clar`, which has a broken auction extension)
+- `contracts/pepe-marketplace.clar` — standalone template used by the
+  first two sims (NOT `custodial-marketplace.clar`, which has a broken
+  auction extension)
