@@ -40,10 +40,7 @@
 
 (define-public (initialize (nft-contract principal))
   (begin
-    (asserts! (or
-      (is-eq tx-sender CONTRACT-OWNER)
-      (is-eq tx-sender (var-get fakfun)))
-      ERR-NOT-AUTHORIZED)
+    (asserts! (is-eq tx-sender (var-get fakfun)) ERR-NOT-AUTHORIZED)
     (asserts! (is-none (var-get allowed-nft)) ERR-ALREADY-INITIALIZED)
     (var-set allowed-nft (some nft-contract))
     (map-set whitelisted-fts PEPECOIN true)
