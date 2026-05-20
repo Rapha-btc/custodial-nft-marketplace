@@ -1,5 +1,3 @@
-;; SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22.pepe-nft-marketplace
-
 (use-trait nft-trait 'SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9.nft-trait.nft-trait)
 (use-trait ft-trait 'SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE.sip-010-trait-ft-standard.sip-010-trait)
 
@@ -42,6 +40,21 @@
     (var-set allowed-nft (some nft-contract))
     (print {event: "initialized", nft-contract: nft-contract})
     (ok true)))
+
+(define-public (register-nft-marketplace
+    (verified-contract principal)
+    (name (string-ascii 128)))
+  (let ((nft-principal (unwrap! (var-get allowed-nft) ERR-NOT-INITIALIZED)))
+    (asserts! (or
+      (is-eq tx-sender CONTRACT-OWNER)
+      (is-eq tx-sender 'SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22))
+      ERR-NOT-AUTHORIZED)
+    (contract-call?
+      'SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22.fakfun-nfts-core
+      register-marketplace
+      verified-contract
+      nft-principal
+      name)))
 
 (define-public (set-paused (paused bool))
   (begin
