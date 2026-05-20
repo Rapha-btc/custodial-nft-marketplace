@@ -24,7 +24,7 @@
 (define-data-var royalty-percent uint u250)
 (define-data-var royalty-recipient principal CONTRACT-OWNER)
 (define-data-var platform-fee uint u250)
-(define-data-var platform-recipient principal CONTRACT-OWNER)
+(define-data-var platform-recipient principal 'SMH8FRN30ERW1SX26NJTJCKTDR3H27NRJ6W75WQE)
 
 (define-data-var allowed-nft (optional principal) none)
 
