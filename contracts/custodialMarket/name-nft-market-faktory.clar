@@ -2,6 +2,9 @@
 (use-trait ft-trait 'SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE.sip-010-trait-ft-standard.sip-010-trait)
 
 (define-constant CONTRACT-OWNER tx-sender)
+(define-constant FAKFUN-NFTS-CORE 'SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22.fakfun-nfts-core)
+
+(define-data-var fakfun principal 'SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22)
 
 (define-constant ERR-NOT-AUTHORIZED (err u200))
 (define-constant ERR-ALREADY-LISTED (err u201))
@@ -17,9 +20,9 @@
 (define-constant ERR-WRONG-FT (err u211))
 
 (define-data-var contract-paused bool false)
-(define-data-var royalty-percent uint u250) 
+(define-data-var royalty-percent uint u250)
 (define-data-var royalty-recipient principal CONTRACT-OWNER)
-(define-data-var platform-fee uint u250) 
+(define-data-var platform-fee uint u250)
 (define-data-var platform-recipient principal CONTRACT-OWNER)
 
 (define-data-var allowed-nft (optional principal) none)
@@ -35,7 +38,10 @@
 
 (define-public (initialize (nft-contract principal))
   (begin
-    (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
+    (asserts! (or
+      (is-eq tx-sender CONTRACT-OWNER)
+      (is-eq tx-sender (var-get fakfun)))
+      ERR-NOT-AUTHORIZED)
     (asserts! (is-none (var-get allowed-nft)) ERR-ALREADY-INITIALIZED)
     (var-set allowed-nft (some nft-contract))
     (print {event: "initialized", nft-contract: nft-contract})
@@ -47,10 +53,10 @@
   (let ((nft-principal (unwrap! (var-get allowed-nft) ERR-NOT-INITIALIZED)))
     (asserts! (or
       (is-eq tx-sender CONTRACT-OWNER)
-      (is-eq tx-sender 'SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22))
+      (is-eq tx-sender (var-get fakfun)))
       ERR-NOT-AUTHORIZED)
     (contract-call?
-      'SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22.fakfun-nfts-core
+      FAKFUN-NFTS-CORE
       register-marketplace
       verified-contract
       nft-principal
@@ -58,21 +64,21 @@
 
 (define-public (set-paused (paused bool))
   (begin
-    (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
+    (asserts! (is-eq tx-sender (var-get fakfun)) ERR-NOT-AUTHORIZED)
     (var-set contract-paused paused)
     (print {event: "contract-paused", paused: paused})
     (ok true)))
 
 (define-public (whitelist-ft (ft <ft-trait>) (whitelisted bool))
   (begin
-    (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
+    (asserts! (is-eq tx-sender (var-get fakfun)) ERR-NOT-AUTHORIZED)
     (map-set whitelisted-fts (contract-of ft) whitelisted)
     (print {event: "ft-whitelist-update", ft-contract: (contract-of ft), whitelisted: whitelisted})
     (ok true)))
 
 (define-public (set-royalty-percent (percent uint))
   (begin
-    (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
+    (asserts! (is-eq tx-sender (var-get fakfun)) ERR-NOT-AUTHORIZED)
     (asserts! (<= percent u1000) ERR-NOT-AUTHORIZED) ;; Max 10%
     (var-set royalty-percent percent)
     (print {event: "royalty-percent-updated", percent: percent})
@@ -80,14 +86,17 @@
 
 (define-public (set-royalty-recipient (recipient principal))
   (begin
-    (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
+    (asserts! (or
+      (is-eq tx-sender CONTRACT-OWNER)
+      (is-eq tx-sender (var-get fakfun)))
+      ERR-NOT-AUTHORIZED)
     (var-set royalty-recipient recipient)
     (print {event: "royalty-recipient-updated", recipient: recipient})
     (ok true)))
 
 (define-public (set-platform-fee (fee uint))
   (begin
-    (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
+    (asserts! (is-eq tx-sender (var-get fakfun)) ERR-NOT-AUTHORIZED)
     (asserts! (<= fee u500) ERR-NOT-AUTHORIZED) ;; Max 5%
     (var-set platform-fee fee)
     (print {event: "platform-fee-updated", fee: fee})
@@ -95,9 +104,16 @@
 
 (define-public (set-platform-recipient (recipient principal))
   (begin
-    (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
+    (asserts! (is-eq tx-sender (var-get fakfun)) ERR-NOT-AUTHORIZED)
     (var-set platform-recipient recipient)
     (print {event: "platform-recipient-updated", recipient: recipient})
+    (ok true)))
+
+(define-public (set-fakfun (new-fakfun principal))
+  (begin
+    (asserts! (is-eq tx-sender (var-get fakfun)) ERR-NOT-AUTHORIZED)
+    (var-set fakfun new-fakfun)
+    (print {event: "fakfun-updated", new-fakfun: new-fakfun})
     (ok true)))
 
 (define-private (check-nft-allowed (nft-contract <nft-trait>))
@@ -238,7 +254,7 @@
     (listing (unwrap! (map-get? listings token-id) ERR-NOT-LISTED))
     (seller (get seller listing))
   )
-    (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
+    (asserts! (is-eq tx-sender (var-get fakfun)) ERR-NOT-AUTHORIZED)
     (asserts! (check-nft-allowed nft-contract) ERR-WRONG-NFT)
 
     (try! (as-contract? ((with-nft (contract-of nft-contract) "*" (list token-id)))
@@ -257,6 +273,9 @@
 
 (define-read-only (get-allowed-nft)
   (var-get allowed-nft))
+
+(define-read-only (get-fakfun)
+  (var-get fakfun))
 
 (define-read-only (get-royalty-info)
   {
