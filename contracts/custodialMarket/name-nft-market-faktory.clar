@@ -45,7 +45,7 @@
       ERR-NOT-AUTHORIZED)
     (asserts! (is-none (var-get allowed-nft)) ERR-ALREADY-INITIALIZED)
     (var-set allowed-nft (some nft-contract))
-    (map-set whitelisted-fts (contract-of ft) PEPECOIN)
+    (map-set whitelisted-fts PEPECOIN true)
     (print {event: "initialized", nft-contract: nft-contract})
     (ok true)))
 
