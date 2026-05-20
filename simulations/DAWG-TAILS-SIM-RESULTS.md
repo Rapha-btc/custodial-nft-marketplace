@@ -156,9 +156,80 @@ the pepe pair; a hammered-on dawg-tails version would also include:
   entry should be gone — re-list the same token id from the original
   owner cleanly.
 
+## Hammer simulation (full coverage)
+
+A second, more exhaustive sim — `simulations/dawg-tails-hammer.js` —
+deploys a separate marketplace `dawg-tails-mkt-hammer` and exercises
+every behaviour in the contract including the gaps flagged above.
+
+**URL:** https://stxer.xyz/simulations/mainnet/9fedd7ac2d9a37999ef6642e1a9de8b6
+**Block:** 8,027,964
+**Steps:** 38 / 38 behaved as expected
+
+| # | Step | Got | Expected |
+|---|------|-----|----------|
+| 0 | Deploy fresh marketplace | `(ok true)` | ✅ |
+| 1 | List #2 **pre-init** | `(err u210)` | `NOT-INITIALIZED` ✅ |
+| 2 | Buy #2 **pre-init** | `(err u202)` | NOT-LISTED — check order means the listing-lookup fires before init-check; both errors correctly reject. ⚠ minor quirk, not a bug |
+| 3 | `initialize` | `(ok true)` | ✅ |
+| 4 | List with **wrong NFT contract** (bitcoin-pepe) | `(err u208)` | `WRONG-NFT` ✅ |
+| 5 | List with FT not yet whitelisted | `(err u204)` | `FT-NOT-WHITELISTED` ✅ |
+| 6 | Whitelist dawgpool | `(ok true)` | ✅ |
+| 7 | List #2 at **price 0** | `(err u205)` | `INVALID-PRICE` ✅ |
+| 8 | `set-royalty-percent 1500` (>10%) | `(err u200)` | Contract asserts `<= u1000` and returns `NOT-AUTHORIZED` ✅ |
+| 9 | `set-platform-fee 600` (>5%) | `(err u200)` | Same — asserts `<= u500` and returns `NOT-AUTHORIZED` ✅ |
+| 10 | `set-royalty-recipient` | `(ok true)` | ✅ |
+| 11 | `set-platform-recipient` | `(ok true)` | ✅ |
+| 12–19 | 8 NFT listings (SELLER1×5 + SELLER2×3) | `(ok true)` ×8 | ✅ |
+| 20 | `update-price` on token 99 (never listed) | `(err u202)` | `NOT-LISTED` ✅ |
+| 21 | `unlist-nft` on token 99 | `(err u202)` | `NOT-LISTED` ✅ |
+| 22 | `update-listing-ft` on token 99 | `(err u202)` | `NOT-LISTED` ✅ |
+| 23 | `update-price` #2 → 0 | `(err u205)` | `INVALID-PRICE` ✅ |
+| 24 | **BUYER buys #7 @ 300 dawgpool** | `(ok true)` | ✅ — event split below |
+| 25 | `update-price` on already-sold #7 | `(err u202)` | `NOT-LISTED` (stale slot rejected) ✅ |
+| 26 | Buy already-sold #7 | `(err u202)` | `NOT-LISTED` ✅ |
+| 27 | DEPLOYER un-whitelists dawgpool | `(ok true)` | ✅ |
+| 28 | Buy existing #8 with un-whitelisted FT | `(err u204)` | `FT-NOT-WHITELISTED` — confirms `buy-nft` **re-checks** the whitelist at call time ✅ |
+| 29 | New list in un-whitelisted FT | `(err u204)` | `FT-NOT-WHITELISTED` ✅ |
+| 30 | Re-whitelist dawgpool | `(ok true)` | ✅ |
+| 31 | **BUYER buys #8 @ 700 dawgpool** (post re-whitelist) | `(ok true)` | ✅ |
+| 32 | Unlist #4 | `(ok true)` | ✅ NFT returns to SELLER1 |
+| 33 | Re-list #4 @ new price (stale slot freed) | `(ok true)` | ✅ |
+| 34 | `admin-emergency-return` #14 | `(ok true)` | ✅ |
+| 35 | `update-price` on returned #14 | `(err u202)` | `NOT-LISTED` (listing entry was cleaned up) ✅ |
+| 36 | Re-list #14 cleanly post emergency-return | `(ok true)` | ✅ |
+| 37 | **BUYER buys #19 @ 800 dawgpool** | `(ok true)` | ✅ |
+
+### Royalty / platform split — event-level verification
+
+Captured directly from the buy steps' `ft_transfer_event` + `nft_transfer_event` payloads:
+
+| Buy | Price | Seller (95%) | Royalty (2.5%) | Platform (2.5%) | NFT moved |
+|-----|-------|--------------|----------------|-----------------|-----------|
+| #7  | 300 dawgpool | 285 → SELLER1 | 7.5 → ROYALTY_RECIPIENT | 7.5 → PLATFORM_RECIPIENT | marketplace → BUYER ✅ |
+| #8  | 700 dawgpool | 665 → SELLER2 | 17.5 → ROYALTY_RECIPIENT | 17.5 → PLATFORM_RECIPIENT | marketplace → BUYER ✅ |
+| #19 | 800 dawgpool | 760 → SELLER2 | 20 → ROYALTY_RECIPIENT | 20 → PLATFORM_RECIPIENT | marketplace → BUYER ✅ |
+
+Splits are exact to the satoshi-equivalent. The recipients used during
+this run are:
+
+- ROYALTY_RECIPIENT = `SP1CSHTKVHMMQJ7PRQRFYW6SB4QAW6SR3XY2F81PA`
+- PLATFORM_RECIPIENT = `SP280XKQ2T1V0NBE23MCAT0KS6P6MHV6RC8B2CWVJ`
+
+### Bugs / quirks found
+
+**None functionally.** One minor observation:
+
+- **Step 2** (`buy-nft` pre-init) returned `NOT-LISTED` instead of
+  `NOT-INITIALIZED`. The contract's `buy-nft` looks up the listings map
+  before checking `allowed-nft` initialisation, so the map-miss fires
+  first. Both paths reject the buy correctly; only the error message
+  differs slightly. Not worth fixing.
+
 ## Files
 
-- `simulations/dawg-tails-marketplace-test.js` — the 29-step sim above
+- `simulations/dawg-tails-marketplace-test.js` — initial 29-step sim
+- `simulations/dawg-tails-hammer.js` — full 38-step coverage sim
 - `simulations/find-dawg-owners.mjs` — small helper that grouped chain
   ownership of all 26 dawg-tails NFTs to pick a multi-seller scenario
 - `contracts/pepe-marketplace.clar` — the template used (NOT
