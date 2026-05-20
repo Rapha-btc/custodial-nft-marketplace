@@ -1,7 +1,7 @@
-// Launchpad trait-conformance sim
-// For each candidate NFT, deploy a marketplace clone, initialize to that NFT,
-// whitelist sBTC, and have a real holder list-nft. If list-nft succeeds, the
-// NFT conforms to SP2PABAF...nft-trait and its transfer works as seller→contract.
+// Launchpad full-flow sim: for each of 7 candidate NFTs, deploy a marketplace clone,
+// initialize to that NFT, whitelist PEPE as payment, have the real holder list a token
+// they own, then have a PEPE-rich buyer purchase it. Proves trait conformance + transfer
+// + FT payment splits + NFT custody return all work end-to-end.
 import fs from "node:fs";
 import {
   ClarityVersion,
@@ -13,8 +13,9 @@ import {
 import { SimulationBuilder } from "stxer";
 
 const DEPLOYER = "SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22";
-const SBTC = ["SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4", "sbtc-token"];
-const LIST_PRICE = 1000; // 1000 sats sBTC — meaningless, list-nft just asserts > 0
+const BUYER = "SP1NPDHF9CQ8B9Q045CCQS1MR9M9SGJ5TT6WFFCD2"; // ~421M PEPE on mainnet
+const PEPE = ["SP1Z92MPDQEWZXW36VX71Q25HKF5K2EPCJ304F275", "tokensoft-token-v4k68639zxz"];
+const LIST_PRICE = 10_000_000_000; // 10M PEPE (3 decimals → ×1000)
 
 const TESTS = [
   { mkt: "leo-cats-mkt",        nft: ["SP2N959SER36FZ5QT1CX9BR63W3E8X35WQCMBYYWC", "leo-cats"],          tokenId: 5000, holder: "SP1DABD9JN312E3HG1VM3ES8RD725CBK8CE2Q5FX1" },
@@ -26,11 +27,10 @@ const TESTS = [
   { mkt: "early-eagles-v2-mkt", nft: ["SP35A2J9JBTPSS9WA9XZAPRX8FB3245XXG7CZ0ZM2", "early-eagles-v2"],  tokenId: 1,    holder: "SPKH9AWG0ENZ87J1X0PBD4HETP22G8W22AFNVF8K" },
 ];
 
-const rawSource = fs.readFileSync(
-  "./contracts/custodialMarket/pepe-nft-marketplace.clar",
+const source = fs.readFileSync(
+  "./contracts/custodialMarket/name-nft-market-faktory.clar",
   "utf8"
 );
-const source = rawSource.replace(/^;; SPV9K21[^\n]*\n/, "");
 
 async function main() {
   let sim = SimulationBuilder.new();
@@ -38,22 +38,26 @@ async function main() {
   for (const t of TESTS) {
     const MKT_ID = `${DEPLOYER}.${t.mkt}`;
     sim = sim
+      // 1. ADMIN deploys marketplace clone
       .withSender(DEPLOYER)
       .addContractDeploy({
         contract_name: t.mkt,
         source_code: source,
         clarity_version: ClarityVersion.Clarity4,
       })
+      // 2. ADMIN initializes marketplace to this NFT
       .addContractCall({
         contract_id: MKT_ID,
         function_name: "initialize",
         function_args: [principalCV(`${t.nft[0]}.${t.nft[1]}`)],
       })
+      // 3. ADMIN whitelists PEPE as the payment FT
       .addContractCall({
         contract_id: MKT_ID,
         function_name: "whitelist-ft",
-        function_args: [contractPrincipalCV(SBTC[0], SBTC[1]), boolCV(true)],
+        function_args: [contractPrincipalCV(PEPE[0], PEPE[1]), boolCV(true)],
       })
+      // 4. Real holder lists their token at 10M PEPE
       .withSender(t.holder)
       .addContractCall({
         contract_id: MKT_ID,
@@ -61,8 +65,19 @@ async function main() {
         function_args: [
           uintCV(t.tokenId),
           contractPrincipalCV(t.nft[0], t.nft[1]),
-          contractPrincipalCV(SBTC[0], SBTC[1]),
+          contractPrincipalCV(PEPE[0], PEPE[1]),
           uintCV(LIST_PRICE),
+        ],
+      })
+      // 5. PEPE-rich buyer purchases the token
+      .withSender(BUYER)
+      .addContractCall({
+        contract_id: MKT_ID,
+        function_name: "buy-nft",
+        function_args: [
+          uintCV(t.tokenId),
+          contractPrincipalCV(t.nft[0], t.nft[1]),
+          contractPrincipalCV(PEPE[0], PEPE[1]),
         ],
       });
   }
@@ -70,9 +85,7 @@ async function main() {
   const sessionId = await sim.run();
   console.log(`\nstxer session: ${sessionId}`);
   console.log(`view:          https://stxer.xyz/simulations/mainnet/${sessionId}\n`);
-
-  console.log("collections sim'd (4 steps each — deploy, init, whitelist-sbtc, list-nft):");
-  for (const t of TESTS) console.log(`  ${t.mkt.padEnd(25)} token #${t.tokenId} held by ${t.holder}`);
+  console.log("flow per collection (5 steps): deploy, initialize, whitelist-PEPE, list-nft, buy-nft");
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });

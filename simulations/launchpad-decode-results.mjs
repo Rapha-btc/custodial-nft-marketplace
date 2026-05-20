@@ -51,8 +51,8 @@ function summarizeStep(s) {
   return { kind: "call", ok, summary: tag + decoded };
 }
 
-const PER = 4;
-const LABELS = ["1.deploy        ", "2.initialize    ", "3.whitelist-sbtc", "4.list-nft      "];
+const PER = 5;
+const LABELS = ["1.deploy        ", "2.initialize    ", "3.whitelist-pepe", "4.list-nft      ", "5.buy-nft       "];
 
 const verdicts = [];
 for (let i = 0; i < TESTS.length; i++) {
@@ -67,15 +67,18 @@ for (let i = 0; i < TESTS.length; i++) {
     console.log(`  ${LABELS[j]} ${v.summary}`);
     if (!v.ok) allOk = false;
     if (j === 3 && v.ok) listOk = true;
+    if (j === 4 && v.ok) verdicts.lastBuyOk = true;
   }
-  verdicts.push({ mkt: TESTS[i], allOk, listOk });
+  verdicts.push({ mkt: TESTS[i], allOk, listOk, buyOk: verdicts.lastBuyOk || false });
+  verdicts.lastBuyOk = false;
   console.log("");
 }
 
 console.log("=== SUMMARY ===");
 for (const v of verdicts) {
-  const verdict = v.listOk ? "✅ trait+transfer OK" : "❌ FAILED at list-nft";
-  console.log(`  ${v.mkt.padEnd(25)} ${verdict}`);
+  if (v.allOk) console.log(`  ${v.mkt.padEnd(25)} ✅ list+buy roundtrip OK`);
+  else if (v.listOk) console.log(`  ${v.mkt.padEnd(25)} ⚠️ list OK but buy FAILED`);
+  else console.log(`  ${v.mkt.padEnd(25)} ❌ FAILED at list-nft`);
 }
 console.log(`\nview: https://stxer.xyz/simulations/mainnet/${SESSION}`);
 console.log(`raw saved: /tmp/launchpad-sim-raw.json`);
