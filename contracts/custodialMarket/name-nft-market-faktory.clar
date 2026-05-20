@@ -3,6 +3,7 @@
 
 (define-constant CONTRACT-OWNER tx-sender)
 (define-constant FAKFUN-NFTS-CORE 'SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22.fakfun-nfts-core)
+(define-constant PEPECOIN 'SP1Z92MPDQEWZXW36VX71Q25HKF5K2EPCJ304F275.tokensoft-token-v4k68639zxz)
 
 (define-data-var fakfun principal 'SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22)
 
@@ -44,6 +45,7 @@
       ERR-NOT-AUTHORIZED)
     (asserts! (is-none (var-get allowed-nft)) ERR-ALREADY-INITIALIZED)
     (var-set allowed-nft (some nft-contract))
+    (map-set whitelisted-fts (contract-of ft) PEPECOIN)
     (print {event: "initialized", nft-contract: nft-contract})
     (ok true)))
 
