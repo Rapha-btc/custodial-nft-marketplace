@@ -19,6 +19,7 @@
 (define-constant ERR-ALREADY-INITIALIZED (err u209))
 (define-constant ERR-NOT-INITIALIZED (err u210))
 (define-constant ERR-WRONG-FT (err u211))
+(define-constant ERR-NFT-NOT-TRANSFERRED (err u212))
 
 (define-data-var contract-paused bool false)
 (define-data-var royalty-percent uint u250)
@@ -136,6 +137,9 @@
     (asserts! (is-none (map-get? listings token-id)) ERR-ALREADY-LISTED)
 
     (try! (contract-call? nft-contract transfer token-id seller current-contract))
+    (asserts!
+      (is-eq (try! (contract-call? nft-contract get-owner token-id)) (some current-contract))
+      ERR-NFT-NOT-TRANSFERRED)
 
     (map-set listings token-id {
       seller: seller,
@@ -199,6 +203,9 @@
 
     (try! (as-contract? ((with-nft (contract-of nft-contract) "*" (list token-id)))
       (try! (contract-call? nft-contract transfer token-id current-contract seller))))
+    (asserts!
+      (is-eq (try! (contract-call? nft-contract get-owner token-id)) (some seller))
+      ERR-NFT-NOT-TRANSFERRED)
 
     (map-delete listings token-id)
 
@@ -236,6 +243,9 @@
 
     (try! (as-contract? ((with-nft (contract-of nft-contract) "*" (list token-id)))
       (try! (contract-call? nft-contract transfer token-id current-contract buyer))))
+    (asserts!
+      (is-eq (try! (contract-call? nft-contract get-owner token-id)) (some buyer))
+      ERR-NFT-NOT-TRANSFERRED)
 
     (map-delete listings token-id)
 
@@ -261,6 +271,9 @@
 
     (try! (as-contract? ((with-nft (contract-of nft-contract) "*" (list token-id)))
       (try! (contract-call? nft-contract transfer token-id current-contract seller))))
+    (asserts!
+      (is-eq (try! (contract-call? nft-contract get-owner token-id)) (some seller))
+      ERR-NFT-NOT-TRANSFERRED)
 
     (map-delete listings token-id)
 
