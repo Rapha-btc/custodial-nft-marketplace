@@ -1,6 +1,5 @@
 (use-trait nft-trait 'SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9.nft-trait.nft-trait)
 
-
 (define-constant MAX-ROYALTY-BPS u1000)
 (define-constant MAX-PLATFORM-BPS u500)
 (define-constant MAX-QUANTITY u100)
@@ -39,7 +38,6 @@
   }
 )
 
-
 (define-map bids
   uint
   {
@@ -50,7 +48,6 @@
     created-at: uint,
   }
 )
-
 
 (define-private (is-admin)
   (is-eq tx-sender (var-get fakfun))
@@ -174,7 +171,9 @@
     (asserts! (not (var-get contract-paused)) ERR-PAUSED)
     (asserts! (is-collection-enabled nft-contract) ERR-COLLECTION-NOT-WHITELISTED)
     (asserts! (> price u0) ERR-INVALID-PRICE)
-    (asserts! (and (> quantity u0) (<= quantity MAX-QUANTITY)) ERR-INVALID-QUANTITY)
+    (asserts! (and (> quantity u0) (<= quantity MAX-QUANTITY))
+      ERR-INVALID-QUANTITY
+    )
     (try! (stx-transfer? escrow bidder current-contract))
     (map-set bids bid-id {
       bidder: bidder,
@@ -300,8 +299,7 @@
           true
         )
         true
-      )
-    ))
+      )))
     (print {
       event: "bid-filled",
       bid-id: bid-id,

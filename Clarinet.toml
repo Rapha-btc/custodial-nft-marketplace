@@ -36,3 +36,8 @@ api_url = 'https://api.hiro.so'
 path = "contracts/fakfun-collection-bids.clar"
 clarity_version = 4
 epoch = 3.3
+
+[contracts.fakfun-collection-bids-stx]
+path = "contracts/fakfun-collection-bids-stx.clar"
+clarity_version = 4
+epoch = 3.3
