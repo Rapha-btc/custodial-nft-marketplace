@@ -36,13 +36,6 @@
   (is-eq tx-sender (contract-call? .fakfun-market-registry get-fakfun))
 )
 
-(define-private (is-live)
-  (and
-    (not (contract-call? .fakfun-market-registry is-paused))
-    (contract-call? .fakfun-market-registry is-market current-contract)
-  )
-)
-
 (define-private (log
     (event (string-ascii 24))
     (nft-contract principal)
@@ -290,10 +283,10 @@
   }
 )
 
-(define-read-only (is-paused)
-  (or
-    (contract-call? .fakfun-market-registry is-paused)
-    (not (contract-call? .fakfun-market-registry is-market current-contract))
+(define-read-only (is-live)
+  (and
+    (not (contract-call? .fakfun-market-registry is-paused))
+    (contract-call? .fakfun-market-registry is-market current-contract)
   )
 )
 

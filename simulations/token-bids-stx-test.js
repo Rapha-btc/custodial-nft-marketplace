@@ -49,7 +49,7 @@ for (const n of [REG, NAME]) {
 reg("random cannot whitelist", RANDOM, "set-collection", [nft, boolCV(true), uintCV(250), principalCV(ROYALTY)], "(err u300)");
 reg("admin whitelists bitcoin-pepe 2.5%", ADMIN, "set-collection", [nft, boolCV(true), uintCV(250), principalCV(ROYALTY)], "(ok true)");
 bid("market not registered -> paused (u301)", B1, 964, 10, "(err u301)");
-evalc("unregistered market reports paused", "(is-paused)");
+evalc("unregistered market not live", "(is-live)");
 reg("random cannot register market", RANDOM, "set-market", [principalCV(CID), boolCV(true)], "(err u300)");
 reg("admin registers token-bids market", ADMIN, "set-market", [principalCV(CID), boolCV(true)], "(ok true)");
 reg("direct log from a non-market refused", RANDOM, "log", [stringAsciiCV("x"), nft, uintCV(1), uintCV(0), principalCV(RANDOM), noneCV(), uintCV(0), uintCV(0), uintCV(0), uintCV(0)], "(err u318)");
@@ -117,16 +117,16 @@ evalc("escrow 0", stxBal(CID), "C12");
 // ---- pause ----
 bid("B1 5 on #1654", B1, 1654, 5, "(ok true)");
 reg("admin pauses registry (global)", ADMIN, "set-paused", [boolCV(true)], "(ok true)");
-evalc("market reports paused", "(is-paused)");
+evalc("market not live", "(is-live)");
 bid("no bids while registry paused", B2, 1654, 6, "(err u301)");
 accept("no accept while registry paused", SELLER, 1654, "(err u301)");
 reg("admin unpauses registry", ADMIN, "set-paused", [boolCV(false)], "(ok true)");
 reg("admin unregisters this market only", ADMIN, "set-market", [principalCV(CID), boolCV(false)], "(ok true)");
-evalc("market reports paused", "(is-paused)");
+evalc("market not live", "(is-live)");
 bid("no bids while unregistered", B2, 1654, 6, "(err u301)");
 cancel("cancel works while unregistered", B1, 1654, "(ok true)");
 reg("admin re-registers market", ADMIN, "set-market", [principalCV(CID), boolCV(true)], "(ok true)");
-evalc("market live again", "(is-paused)");
+evalc("market live again", "(is-live)");
 
 // ---- set-min-increment ----
 call("random cannot set increment", RANDOM, "set-min-increment", [uintCV(500), uintCV(STX(2))], "(err u300)");
