@@ -2,7 +2,7 @@
 
 (define-constant MAX-INCREMENT-BPS u1000)
 (define-constant MAX-INCREMENT-ABS u100000000)
-(define-constant MIN-DURATION u36)
+(define-constant MIN-DURATION u1)
 (define-constant MAX-DURATION u1008)
 (define-constant SNIPE-WINDOW u6)
 

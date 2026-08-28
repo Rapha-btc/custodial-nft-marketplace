@@ -62,7 +62,7 @@ for (const [k, w] of [["S0", SELLER], ["A0", B1], ["Z0", B2], ["R0", ROYALTY], [
 // ---- create ----
 call("unknown collection", SELLER, "create-auction", [cp(LIAR), uintCV(1), uintCV(STX(10)), uintCV(144)], "(err u302)");
 create("zero reserve", SELLER, 964, 0, 144, "(err u304)");
-create("duration 35 too short", SELLER, 964, 10, 35, "(err u325)");
+create("duration 0 too short", SELLER, 964, 10, 0, "(err u325)");
 create("duration 1009 too long", SELLER, 964, 10, 1009, "(err u325)");
 create("RANDOM does not own #964", RANDOM, 964, 10, 144, "(err u1)");
 create("seller auctions #964, reserve 10, 144 blocks -> #1", SELLER, 964, 10, 144, "(ok u1)");
