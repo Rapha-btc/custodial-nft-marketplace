@@ -247,14 +247,13 @@
       (token-id (get token-id auction))
       (nft-contract (contract-of nft))
       (price (get top-amount auction))
+      (nft-from-auction (get nft-contract auction))
       (q (unwrap!
-        (contract-call? .fakfun-market-registry quote (get nft-contract auction)
-          price
-        )
+        (contract-call? .fakfun-market-registry quote nft-from-auction price)
         ERR-COLLECTION-NOT-WHITELISTED
       ))
     )
-    (asserts! (is-eq nft-contract (get nft-contract auction)) ERR-WRONG-NFT)
+    (asserts! (is-eq nft-contract nft-from-auction) ERR-WRONG-NFT)
     (asserts! (>= burn-block-height (get ends-at auction)) ERR-AUCTION-LIVE)
     (map-delete auctions auction-id)
     (match (get top-bidder auction)
