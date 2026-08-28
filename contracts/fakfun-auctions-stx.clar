@@ -180,6 +180,12 @@
       ))
     )
     (asserts! (is-live) ERR-PAUSED)
+    (asserts!
+      (contract-call? .fakfun-market-registry is-collection-enabled
+        (get nft-contract auction)
+      )
+      ERR-COLLECTION-NOT-WHITELISTED
+    )
     (asserts! (< burn-block-height ends-at) ERR-AUCTION-ENDED)
     (asserts! (not (is-eq bidder (get seller auction))) ERR-CANNOT-FILL-OWN)
     (asserts! (>= amount (min-next-bid auction)) ERR-BID-TOO-LOW)

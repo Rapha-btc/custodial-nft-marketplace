@@ -126,6 +126,9 @@ cancel("cancel twice", SELLER, 3, "(err u322)");
 // ---- pause / unregister: bids blocked, settle still works so escrow never sticks ----
 create("seller auctions #901 reserve 5, 36 -> #4", SELLER, 901, 5, 36, "(ok u4)");
 bid("B1 5", B1, 4, 5, "(ok true)");
+reg("admin disables bitcoin-pepe", ADMIN, "set-collection", [nft, boolCV(false), uintCV(250), principalCV(ROYALTY)], "(ok true)");
+bid("no bids on a disabled collection", B2, 4, 6, "(err u302)");
+reg("admin re-enables bitcoin-pepe", ADMIN, "set-collection", [nft, boolCV(true), uintCV(250), principalCV(ROYALTY)], "(ok true)");
 reg("admin pauses registry", ADMIN, "set-paused", [boolCV(true)], "(ok true)");
 bid("no bids while paused", B2, 4, 6, "(err u301)");
 create("no new auctions while paused", SELLER, 1654, 5, 144, "(err u301)");
