@@ -252,6 +252,8 @@
         (contract-call? .fakfun-market-registry quote nft-from-auction price)
         ERR-COLLECTION-NOT-WHITELISTED
       ))
+      (platform-amount (get platform-fee q))
+      (artist-amount (get royalty q))
     )
     (asserts! (is-eq nft-contract nft-from-auction) ERR-WRONG-NFT)
     (asserts! (>= burn-block-height (get ends-at auction)) ERR-AUCTION-LIVE)
@@ -260,16 +262,16 @@
       winner (begin
         (try! (release-nft nft token-id winner))
         (try! (pay-out seller (get seller-receives q)))
-        (if (> (get royalty q) u0)
-          (try! (pay-out (get royalty-recipient q) (get royalty q)))
+        (if (> artist-amount u0)
+          (try! (pay-out (get royalty-recipient q) artist-amount))
           true
         )
-        (if (> (get platform-fee q) u0)
-          (try! (pay-out (get platform-recipient q) (get platform-fee q)))
+        (if (> platform-amount u0)
+          (try! (pay-out (get platform-recipient q) platform-amount))
           true
         )
         (try! (log "auction-settled" nft-contract token-id auction-id seller
-          (some winner) price (get royalty q) (get platform-fee q) u0
+          (some winner) price artist-amount platform-amount u0
         ))
       )
       (begin
