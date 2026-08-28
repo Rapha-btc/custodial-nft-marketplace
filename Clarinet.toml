@@ -42,6 +42,11 @@ path = "contracts/fakfun-collection-bids-stx.clar"
 clarity_version = 4
 epoch = 3.3
 
+[contracts.fakfun-market-registry]
+path = "contracts/fakfun-market-registry.clar"
+clarity_version = 4
+epoch = 3.3
+
 [contracts.fakfun-token-bids-stx]
 path = "contracts/fakfun-token-bids-stx.clar"
 clarity_version = 4

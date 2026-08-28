@@ -360,7 +360,8 @@ repo's `node_modules/stxer` may be symlinked to a newer copy).
 | `fakfun-collection-bids` - pre-deploy source | `collection-bids-edge-cases.js` | 81/81 | https://stxer.xyz/simulations/mainnet/b693cb46eb5962be5401c864b0a25f65 |
 | `SPV9K21….fakfun-collection-bids-stx` - DEPLOYED mainnet contract | `collection-bids-stx-test.js` | 42/42 | https://stxer.xyz/simulations/mainnet/c6ca39a8178e581507fe8723fcb0e328 |
 | `SPV9K21….fakfun-collection-bids-stx` - DEPLOYED mainnet contract | `collection-bids-stx-edge-cases.js` | 70/70 | https://stxer.xyz/simulations/mainnet/4f376adf1ffca428bf4a5ccef9119ca6 |
-| `fakfun-token-bids-stx` (standing per-token STX bids, top-2 escrow) - pre-deploy source | `token-bids-stx-test.js` | 66/66 | https://stxer.xyz/simulations/mainnet/c9371ae71699c71b72a5c6f49efb9410 |
+| `fakfun-market-registry` + `fakfun-token-bids-stx` (standing per-token STX bids, top-2 escrow) - pre-deploy source | `token-bids-stx-test.js` | 80/80 | https://stxer.xyz/simulations/mainnet/f07e69ce8d569f0b4619a9773566648b |
+| `fakfun-market-registry` + `fakfun-auctions-stx` (seller timed auctions, anti-snipe) - pre-deploy source | `auctions-stx-test.js` | 63/63 | https://stxer.xyz/simulations/mainnet/0327c9abcad4697a7cf421946a9acd05 |
 
 The STX harnesses run against the live contract at mainnet tip (no deploy
 step) and derive bid ids from `get-last-bid-id`, so they keep working as real
@@ -369,14 +370,36 @@ then `rv . fakfun-collection-bids invariant|test`) covers the FT contract:
 escrow == sum(price x remaining), no zero-remaining bids, fee caps, pending
 admin != current admin; property tests re-assert those after every action.
 
-`fakfun-token-bids-stx` is the per-token twin: a bid names one token id, only
-the top 2 bids (2 different wallets) stay escrowed and everyone else is
-refunded at outbid time, next bid >= top + max(`min-increment-bps`,
-`min-increment-abs`) (admin-settable, defaults 2% / 1 STX, caps 10% / 100
-STX), top bidder raising pays only the difference, cancelling the top bid
-promotes the second, `accept-bid` moves the NFT to the top bidder, splits
-seller / royalty / platform and refunds the second. No deadline. The seller-
-initiated timed auction lives in `fakfun-auctions-stx` (not simmed yet).
+`fakfun-market-registry` holds what every market shares: the `fakfun` admin
+with the 144 burn block handover, the collections whitelist with royalty
+terms, platform fee / recipient, a global pause, a `markets` allowlist and a
+single `log` entrypoint. Markets never print their own trade events; they call
+`log` and the registry prints one normalized tuple `{event, market,
+nft-contract, token-id, id, actor, counterparty, price, royalty, platform-fee,
+ref, burn-height}` (`actor` = tx sender, `counterparty` = the other party,
+`id` = auction id, 0 for token bids). `log` accepts any market the registry
+has ever known, so cancel / settle refunds keep working after `set-market
+false`; only new bids, accepts and auctions are gated by `is-market` and the
+global pause. A market has no pause of its own.
+
+`fakfun-token-bids-stx`: a bid names one token id, only the top 2 bids (2
+different wallets) stay escrowed and everyone else is refunded at outbid time,
+next bid >= top + max(`min-increment-bps`, `min-increment-abs`)
+(admin-settable, defaults 2% / 1 STX, caps 10% / 100 STX), top bidder
+raising pays only the difference, cancelling the top bid promotes the second,
+`accept-bid` moves the NFT to the top bidder, splits seller / royalty /
+platform via the registry `quote` and refunds the second. No deadline.
+
+`fakfun-auctions-stx`: seller escrows the NFT with a reserve and a duration
+of 36..1008 burn blocks, same increment rule, previous top refunded on
+outbid, a bid in the last 6 blocks extends the end to now + 6, anyone can
+`settle` after the end (winner gets the NFT, or it returns to the seller),
+`cancel-auction` only while there are no bids. Deploy order: registry ->
+`set-collection(s)` -> markets -> `set-market` each.
+
+Gotcha: `contract-call?` into the registry must use the literal
+`.fakfun-market-registry`; a `define-constant` alias turns it into a dynamic
+call and read-only functions fail analysis.
 
 ### What is covered
 

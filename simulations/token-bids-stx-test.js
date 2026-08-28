@@ -1,12 +1,13 @@
 // token-bids-stx-test.js
-// stxer harness for fakfun-token-bids-stx (NOT deployed): deploys the contract
-// from ./contracts at mainnet tip, then walks standing per-token bids:
+// stxer harness for fakfun-market-registry + fakfun-token-bids-stx (NOT
+// deployed): deploys both from ./contracts at mainnet tip, registers the
+// market, then walks standing per-token bids:
 // increment rule (max 2% / 1 STX), top-2 escrow with refund of everyone else,
 // own-raise pays the difference, second re-bids, cancel top -> second promoted,
 // accept -> NFT to top / second refunded / fee split, pause, set-min-increment.
 //   node simulations/token-bids-stx-test.js
 import fs from "node:fs";
-import { uintCV, principalCV, contractPrincipalCV, boolCV, deserializeCV, cvToString, ClarityVersion } from "@stacks/transactions";
+import { uintCV, principalCV, contractPrincipalCV, boolCV, stringAsciiCV, noneCV, deserializeCV, cvToString, ClarityVersion } from "@stacks/transactions";
 import { SimulationBuilder, getSimulationResult } from "stxer";
 
 const NODE = "http://77.42.3.101/stacks-api";
@@ -19,6 +20,8 @@ const ROYALTY = "SP3A4CP63QJB1R0EJR3TJ1PN16FC5HVJSPT77C8C0";
 const PLATFORM = "SMH8FRN30ERW1SX26NJTJCKTDR3H27NRJ6W75WQE";
 const NAME = "fakfun-token-bids-stx";
 const CID = `${ADMIN}.${NAME}`;
+const REG = "fakfun-market-registry";
+const RID = `${ADMIN}.${REG}`;
 const BPEPE = ["SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ", "bitcoin-pepe"];
 const OTHER = principalCV("SP2ZNGJ85ENDY6QRHQ5P2D4FXKGZWCKTB2T0Z55KS.sbtc-fakfun-amm-lp-v1");
 const cp = ([a, n]) => contractPrincipalCV(a, n);
@@ -28,6 +31,8 @@ const STX = (n) => Math.round(n * 1_000_000);
 const plan = [];
 const b = SimulationBuilder.new({ stacksNodeAPI: NODE });
 const call = (label, sender, fn, args, expect) => { b.withSender(sender).addContractCall({ contract_id: CID, function_name: fn, function_args: args }); plan.push({ kind: "tx", label, expect }); };
+const reg = (label, sender, fn, args, expect) => { b.withSender(sender).addContractCall({ contract_id: RID, function_name: fn, function_args: args }); plan.push({ kind: "tx", label, expect }); };
+const advance = (n) => { b.addAdvanceBlocks({ bitcoin_blocks: n, stacks_blocks_per_bitcoin: 1 }); plan.push({ kind: "advance", label: `advance ${n}` }); };
 const evalc = (label, code, capture) => { b.addEvalCode(CID, code); plan.push({ kind: "eval", label, capture }); };
 const stxBal = (who) => `(stx-get-balance '${who})`;
 const owner = (i) => `(contract-call? 'SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ.bitcoin-pepe get-owner u${i})`;
@@ -36,10 +41,19 @@ const bid = (label, sender, id, amt, expect) => call(label, sender, "place-bid",
 const cancel = (label, sender, id, expect) => call(label, sender, "cancel-bid", [nft, uintCV(id)], expect);
 const accept = (label, sender, id, expect) => call(label, sender, "accept-bid", [uintCV(id), cp(BPEPE)], expect);
 
-b.withSender(ADMIN).addContractDeploy({ contract_name: NAME, source_code: fs.readFileSync(`./contracts/${NAME}.clar`, "utf8"), clarity_version: ClarityVersion.Clarity4 });
-plan.push({ kind: "tx", label: "deploy", expect: "(ok true)" });
+for (const n of [REG, NAME]) {
+  b.withSender(ADMIN).addContractDeploy({ contract_name: n, source_code: fs.readFileSync(`./contracts/${n}.clar`, "utf8"), clarity_version: ClarityVersion.Clarity4 });
+  plan.push({ kind: "tx", label: `deploy ${n}`, expect: "(ok true)" });
+}
 
-call("admin whitelists bitcoin-pepe 2.5%", ADMIN, "set-collection", [nft, boolCV(true), uintCV(250), principalCV(ROYALTY)], "(ok true)");
+reg("random cannot whitelist", RANDOM, "set-collection", [nft, boolCV(true), uintCV(250), principalCV(ROYALTY)], "(err u300)");
+reg("admin whitelists bitcoin-pepe 2.5%", ADMIN, "set-collection", [nft, boolCV(true), uintCV(250), principalCV(ROYALTY)], "(ok true)");
+bid("market not registered -> paused (u301)", B1, 964, 10, "(err u301)");
+evalc("unregistered market reports paused", "(is-paused)");
+reg("random cannot register market", RANDOM, "set-market", [principalCV(CID), boolCV(true)], "(err u300)");
+reg("admin registers token-bids market", ADMIN, "set-market", [principalCV(CID), boolCV(true)], "(ok true)");
+reg("direct log from a non-market refused", RANDOM, "log", [stringAsciiCV("x"), nft, uintCV(1), uintCV(0), principalCV(RANDOM), noneCV(), uintCV(0), uintCV(0), uintCV(0), uintCV(0)], "(err u318)");
+evalc("registry quote 100 STX on bitcoin-pepe", `(contract-call? '${RID} quote '${BPEPE.join(".")} u${STX(100)})`);
 evalc("min-increment default", "(get-min-increment)");
 evalc("min-next-bid 10 STX -> 11", `(min-next-bid u${STX(10)})`);
 evalc("min-next-bid 100 STX -> 102", `(min-next-bid u${STX(100)})`);
@@ -102,11 +116,17 @@ evalc("escrow 0", stxBal(CID), "C12");
 
 // ---- pause ----
 bid("B1 5 on #1654", B1, 1654, 5, "(ok true)");
-call("admin pauses", ADMIN, "set-paused", [boolCV(true)], "(ok true)");
-bid("no bids while paused", B2, 1654, 6, "(err u301)");
-accept("no accept while paused", SELLER, 1654, "(err u301)");
-cancel("cancel works while paused", B1, 1654, "(ok true)");
-call("admin unpauses", ADMIN, "set-paused", [boolCV(false)], "(ok true)");
+reg("admin pauses registry (global)", ADMIN, "set-paused", [boolCV(true)], "(ok true)");
+evalc("market reports paused", "(is-paused)");
+bid("no bids while registry paused", B2, 1654, 6, "(err u301)");
+accept("no accept while registry paused", SELLER, 1654, "(err u301)");
+reg("admin unpauses registry", ADMIN, "set-paused", [boolCV(false)], "(ok true)");
+reg("admin unregisters this market only", ADMIN, "set-market", [principalCV(CID), boolCV(false)], "(ok true)");
+evalc("market reports paused", "(is-paused)");
+bid("no bids while unregistered", B2, 1654, 6, "(err u301)");
+cancel("cancel works while unregistered", B1, 1654, "(ok true)");
+reg("admin re-registers market", ADMIN, "set-market", [principalCV(CID), boolCV(true)], "(ok true)");
+evalc("market live again", "(is-paused)");
 
 // ---- set-min-increment ----
 call("random cannot set increment", RANDOM, "set-min-increment", [uintCV(500), uintCV(STX(2))], "(err u300)");
@@ -124,10 +144,18 @@ evalc("bid #901 gone", bidOf(901));
 
 // ---- un-whitelist blocks bids but not accept/cancel of existing ----
 bid("B1 3 on #1654", B1, 1654, 3, "(ok true)");
-call("admin disables bitcoin-pepe", ADMIN, "set-collection", [nft, boolCV(false), uintCV(250), principalCV(ROYALTY)], "(ok true)");
+reg("admin disables bitcoin-pepe", ADMIN, "set-collection", [nft, boolCV(false), uintCV(250), principalCV(ROYALTY)], "(ok true)");
 bid("no new bids", B2, 1654, 5, "(err u302)");
 accept("accept blocked while disabled", SELLER, 1654, "(err u302)");
 cancel("cancel still works", B1, 1654, "(ok true)");
+
+// ---- admin handover lives in the registry and flows to the market ----
+reg("admin proposes B1", ADMIN, "propose-fakfun", [principalCV(B1)], "(ok true)");
+reg("too early", B1, "accept-fakfun", [], "(err u316)");
+advance(144);
+reg("B1 accepts after 144", B1, "accept-fakfun", [], "(ok true)");
+call("old admin cannot set increment on market", ADMIN, "set-min-increment", [uintCV(200), uintCV(STX(1))], "(err u300)");
+call("new admin can", B1, "set-min-increment", [uintCV(200), uintCV(STX(1))], "(ok true)");
 
 for (const [k, w] of [["S1", SELLER], ["A1", B1], ["Z1", B2], ["R1", ROYALTY], ["P1", PLATFORM], ["C13", CID]]) evalc(`${k} balance final`, stxBal(w), k);
 
@@ -143,6 +171,7 @@ res.steps.forEach((s, i) => {
   const p = plan[i]; if (!p) return;
   if (p.kind === "tx") { const got = dtx(s); const ok = got === p.expect; console.log(`${ok ? "✅" : "❌"} [${i}] ${p.label}\n        got ${got}${ok ? "" : `  EXPECTED ${p.expect}`}`); ok ? pass++ : fail++; }
   else if (p.kind === "eval") { const v = dev(s); if (p.capture) cap[p.capture] = v; console.log(`ℹ️  [${i}] ${p.label}: ${v}`); }
+  else console.log(`⏩ [${i}] ${p.label}`);
 });
 const d = (a, b0) => u(cap[a]) - u(cap[b0]);
 // fills: #964 at 102, #967 at 25 -> 127 STX gross; 2.5% royalty + 2.5% platform

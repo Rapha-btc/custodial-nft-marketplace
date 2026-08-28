@@ -1,8 +1,7 @@
 (use-trait nft-trait 'SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9.nft-trait.nft-trait)
 
-(define-constant MAX-ROYALTY-BPS u1000)
-(define-constant MAX-PLATFORM-BPS u500)
-(define-constant ADMIN-COOLDOWN u144)
+(define-constant MAX-INCREMENT-BPS u1000)
+(define-constant MAX-INCREMENT-ABS u100000000)
 
 (define-constant ERR-NOT-AUTHORIZED (err u300))
 (define-constant ERR-PAUSED (err u301))
@@ -12,17 +11,53 @@
 (define-constant ERR-NOT-BIDDER (err u307))
 (define-constant ERR-CANNOT-FILL-OWN (err u311))
 (define-constant ERR-FEE-TOO-HIGH (err u313))
-(define-constant ERR-INVALID-ADMIN (err u314))
-(define-constant ERR-NO-PROPOSAL (err u315))
-(define-constant ERR-COOLDOWN (err u316))
-(define-constant ERR-BAD-ENTRY (err u317))
 (define-constant ERR-BID-TOO-LOW (err u320))
-
-(define-constant MAX-INCREMENT-BPS u1000)
-(define-constant MAX-INCREMENT-ABS u100000000)
 
 (define-data-var min-increment-bps uint u200)
 (define-data-var min-increment-abs uint u1000000)
+
+(define-map token-bids
+  {
+    nft-contract: principal,
+    token-id: uint,
+  }
+  {
+    top-bidder: principal,
+    top-amount: uint,
+    second: (optional {
+      bidder: principal,
+      amount: uint,
+    }),
+    updated-at: uint,
+  }
+)
+
+(define-private (is-admin)
+  (is-eq tx-sender (contract-call? .fakfun-market-registry get-fakfun))
+)
+
+(define-private (is-live)
+  (and
+    (not (contract-call? .fakfun-market-registry is-paused))
+    (contract-call? .fakfun-market-registry is-market current-contract)
+  )
+)
+
+(define-private (log
+    (event (string-ascii 24))
+    (nft-contract principal)
+    (token-id uint)
+    (actor principal)
+    (counterparty (optional principal))
+    (price uint)
+    (royalty uint)
+    (platform-fee uint)
+    (ref uint)
+  )
+  (contract-call? .fakfun-market-registry log event nft-contract token-id u0
+    actor counterparty price royalty platform-fee ref
+  )
+)
 
 (define-public (set-min-increment
     (bps uint)
@@ -44,203 +79,15 @@
   )
 )
 
-(define-read-only (get-min-increment)
-  {
-    bps: (var-get min-increment-bps),
-    abs: (var-get min-increment-abs),
-  }
-)
-
-(define-data-var fakfun principal 'SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22)
-(define-data-var pending-fakfun (optional {
-  principal: principal,
-  accept-after: uint,
-}) none)
-(define-data-var contract-paused bool false)
-(define-data-var platform-fee-bps uint u250)
-(define-data-var platform-recipient principal 'SMH8FRN30ERW1SX26NJTJCKTDR3H27NRJ6W75WQE)
-
-(define-map collections
-  principal
-  {
-    enabled: bool,
-    royalty-bps: uint,
-    royalty-recipient: principal,
-  }
-)
-
-(define-private (is-admin)
-  (is-eq tx-sender (var-get fakfun))
-)
-
-(define-public (propose-fakfun (new-fakfun principal))
-  (begin
-    (asserts! (is-admin) ERR-NOT-AUTHORIZED)
-    (asserts! (not (is-eq new-fakfun (var-get fakfun))) ERR-INVALID-ADMIN)
-    (var-set pending-fakfun
-      (some {
-        principal: new-fakfun,
-        accept-after: (+ burn-block-height ADMIN-COOLDOWN),
-      })
-    )
-    (print {
-      event: "fakfun-proposed",
-      proposed: new-fakfun,
-      accept-after: (+ burn-block-height ADMIN-COOLDOWN),
-    })
-    (ok true)
-  )
-)
-
-(define-public (cancel-fakfun-proposal)
-  (begin
-    (asserts! (is-admin) ERR-NOT-AUTHORIZED)
-    (asserts! (is-some (var-get pending-fakfun)) ERR-NO-PROPOSAL)
-    (var-set pending-fakfun none)
-    (print { event: "fakfun-proposal-cancelled" })
-    (ok true)
-  )
-)
-
-(define-public (accept-fakfun)
-  (let ((pending (unwrap! (var-get pending-fakfun) ERR-NO-PROPOSAL)))
-    (asserts! (is-eq tx-sender (get principal pending)) ERR-NOT-AUTHORIZED)
-    (asserts! (>= burn-block-height (get accept-after pending)) ERR-COOLDOWN)
-    (var-set fakfun (get principal pending))
-    (var-set pending-fakfun none)
-    (print {
-      event: "fakfun-updated",
-      fakfun: (get principal pending),
-    })
-    (ok true)
-  )
-)
-
-(define-public (set-paused (paused bool))
-  (begin
-    (asserts! (is-admin) ERR-NOT-AUTHORIZED)
-    (var-set contract-paused paused)
-    (print {
-      event: "paused-updated",
-      paused: paused,
-    })
-    (ok true)
-  )
-)
-
-(define-public (set-platform-fee (bps uint))
-  (begin
-    (asserts! (is-admin) ERR-NOT-AUTHORIZED)
-    (asserts! (<= bps MAX-PLATFORM-BPS) ERR-FEE-TOO-HIGH)
-    (var-set platform-fee-bps bps)
-    (print {
-      event: "platform-fee-updated",
-      bps: bps,
-    })
-    (ok true)
-  )
-)
-
-(define-public (set-platform-recipient (recipient principal))
-  (begin
-    (asserts! (is-admin) ERR-NOT-AUTHORIZED)
-    (var-set platform-recipient recipient)
-    (print {
-      event: "platform-recipient-updated",
-      recipient: recipient,
-    })
-    (ok true)
-  )
-)
-
-(define-public (set-collection
-    (nft-contract principal)
-    (enabled bool)
-    (royalty-bps uint)
-    (royalty-recipient principal)
-  )
-  (begin
-    (asserts! (is-admin) ERR-NOT-AUTHORIZED)
-    (asserts! (<= royalty-bps MAX-ROYALTY-BPS) ERR-FEE-TOO-HIGH)
-    (map-set collections nft-contract {
-      enabled: enabled,
-      royalty-bps: royalty-bps,
-      royalty-recipient: royalty-recipient,
-    })
-    (print {
-      event: "collection-updated",
-      nft-contract: nft-contract,
-      enabled: enabled,
-      royalty-bps: royalty-bps,
-      royalty-recipient: royalty-recipient,
-    })
-    (ok true)
-  )
-)
-
-(define-private (set-collection-entry
-    (entry {
-      nft-contract: principal,
-      royalty-bps: uint,
-      royalty-recipient: principal,
-    })
-    (acc (response uint uint))
-  )
-  (let ((n (try! acc)))
-    (asserts! (<= (get royalty-bps entry) MAX-ROYALTY-BPS) ERR-FEE-TOO-HIGH)
-    (map-set collections (get nft-contract entry) {
-      enabled: true,
-      royalty-bps: (get royalty-bps entry),
-      royalty-recipient: (get royalty-recipient entry),
-    })
-    (print {
-      event: "collection-updated",
-      nft-contract: (get nft-contract entry),
-      enabled: true,
-      royalty-bps: (get royalty-bps entry),
-      royalty-recipient: (get royalty-recipient entry),
-    })
-    (ok (+ n u1))
-  )
-)
-
-(define-public (set-collections (entries (list 50
-  {
-    nft-contract: principal,
-    royalty-bps: uint,
-    royalty-recipient: principal,
-  }
-)))
-  (begin
-    (asserts! (is-admin) ERR-NOT-AUTHORIZED)
-    (asserts! (> (len entries) u0) ERR-BAD-ENTRY)
-    (fold set-collection-entry entries (ok u0))
-  )
-)
-
-(define-map token-bids
-  {
-    nft-contract: principal,
-    token-id: uint,
-  }
-  {
-    top-bidder: principal,
-    top-amount: uint,
-    second: (optional {
-      bidder: principal,
-      amount: uint,
-    }),
-    updated-at: uint,
-  }
-)
-
 (define-read-only (min-next-bid (current uint))
-  (let ((bump (/ (* current (var-get min-increment-bps)) u10000)))
-    (+ current
-      (if (> bump (var-get min-increment-abs))
-        bump
-        (var-get min-increment-abs)
-      ))
+  (let (
+      (bump (/ (* current (var-get min-increment-bps)) u10000))
+      (min-inc (var-get min-increment-abs))
+    )
+    (+ current (if (> bump min-inc)
+      bump
+      min-inc
+    ))
   )
 )
 
@@ -275,8 +122,11 @@
         token-id: token-id,
       })
     )
-    (asserts! (not (var-get contract-paused)) ERR-PAUSED)
-    (asserts! (is-collection-enabled nft-contract) ERR-COLLECTION-NOT-WHITELISTED)
+    (asserts! (is-live) ERR-PAUSED)
+    (asserts!
+      (contract-call? .fakfun-market-registry is-collection-enabled nft-contract)
+      ERR-COLLECTION-NOT-WHITELISTED
+    )
     (asserts! (> amount u0) ERR-INVALID-PRICE)
     (match (map-get? token-bids key)
       existing (let (
@@ -294,6 +144,10 @@
                 updated-at: burn-block-height,
               })
             )
+            (try! (log "token-bid-raised" nft-contract token-id bidder
+              (get bidder second) amount u0 u0
+              (default-to u0 (get amount second))
+            ))
           )
           (begin
             (try! (stx-transfer? amount bidder current-contract))
@@ -307,6 +161,9 @@
               }),
               updated-at: burn-block-height,
             })
+            (try! (log "token-bid-placed" nft-contract token-id bidder
+              (some top-bidder) amount u0 u0 top-amount
+            ))
           )
         )
       )
@@ -318,16 +175,9 @@
           second: none,
           updated-at: burn-block-height,
         })
+        (try! (log "token-bid-placed" nft-contract token-id bidder none amount u0 u0 u0))
       )
     )
-    (print {
-      event: "token-bid-placed",
-      nft-contract: nft-contract,
-      token-id: token-id,
-      bidder: bidder,
-      amount: amount,
-      bid: (map-get? token-bids key),
-    })
     (ok true)
   )
 )
@@ -356,6 +206,10 @@
           })
           (map-delete token-bids key)
         )
+        (try! (log "token-bid-cancelled" nft-contract token-id tx-sender
+          (get bidder second) (get top-amount existing) u0 u0
+          (default-to u0 (get amount second))
+        ))
       )
       (let ((s (unwrap! second ERR-NOT-BIDDER)))
         (asserts! (is-eq tx-sender (get bidder s)) ERR-NOT-BIDDER)
@@ -366,15 +220,12 @@
             updated-at: burn-block-height,
           })
         )
+        (try! (log "token-bid-cancelled" nft-contract token-id tx-sender
+          (some (get top-bidder existing)) (get amount s) u0 u0
+          (get top-amount existing)
+        ))
       )
     )
-    (print {
-      event: "token-bid-cancelled",
-      nft-contract: nft-contract,
-      token-id: token-id,
-      bidder: tx-sender,
-      bid: (map-get? token-bids key),
-    })
     (ok true)
   )
 )
@@ -391,38 +242,33 @@
         token-id: token-id,
       })
       (existing (unwrap! (map-get? token-bids key) ERR-BID-NOT-FOUND))
-      (collection (unwrap! (map-get? collections nft-contract) ERR-COLLECTION-NOT-WHITELISTED))
       (bidder (get top-bidder existing))
       (price (get top-amount existing))
-      (royalty-amount (/ (* price (get royalty-bps collection)) u10000))
-      (platform-amount (/ (* price (var-get platform-fee-bps)) u10000))
-      (seller-amount (- price (+ royalty-amount platform-amount)))
+      (q (unwrap! (contract-call? .fakfun-market-registry quote nft-contract price)
+        ERR-COLLECTION-NOT-WHITELISTED
+      ))
     )
-    (asserts! (not (var-get contract-paused)) ERR-PAUSED)
-    (asserts! (get enabled collection) ERR-COLLECTION-NOT-WHITELISTED)
+    (asserts! (is-live) ERR-PAUSED)
+    (asserts!
+      (contract-call? .fakfun-market-registry is-collection-enabled nft-contract)
+      ERR-COLLECTION-NOT-WHITELISTED
+    )
     (asserts! (not (is-eq seller bidder)) ERR-CANNOT-FILL-OWN)
     (map-delete token-bids key)
     (try! (contract-call? nft transfer token-id seller bidder))
-    (try! (pay-out seller seller-amount))
-    (if (> royalty-amount u0)
-      (try! (pay-out (get royalty-recipient collection) royalty-amount))
+    (try! (pay-out seller (get seller-receives q)))
+    (if (> (get royalty q) u0)
+      (try! (pay-out (get royalty-recipient q) (get royalty q)))
       true
     )
-    (if (> platform-amount u0)
-      (try! (pay-out (var-get platform-recipient) platform-amount))
+    (if (> (get platform-fee q) u0)
+      (try! (pay-out (get platform-recipient q) (get platform-fee q)))
       true
     )
     (try! (refund-second (get second existing)))
-    (print {
-      event: "token-bid-filled",
-      nft-contract: nft-contract,
-      token-id: token-id,
-      seller: seller,
-      buyer: bidder,
-      price: price,
-      royalty-paid: royalty-amount,
-      platform-fee-paid: platform-amount,
-    })
+    (try! (log "token-bid-filled" nft-contract token-id seller (some bidder) price
+      (get royalty q) (get platform-fee q) u0
+    ))
     (ok true)
   )
 )
@@ -437,25 +283,18 @@
   })
 )
 
-(define-read-only (get-collection (nft-contract principal))
-  (map-get? collections nft-contract)
+(define-read-only (get-min-increment)
+  {
+    bps: (var-get min-increment-bps),
+    abs: (var-get min-increment-abs),
+  }
 )
 
-(define-read-only (is-collection-enabled (nft-contract principal))
-  (default-to false (get enabled (map-get? collections nft-contract)))
-)
-
-(define-read-only (get-platform-fee-bps)
-  (var-get platform-fee-bps)
-)
-(define-read-only (get-fakfun)
-  (var-get fakfun)
-)
-(define-read-only (get-pending-fakfun)
-  (var-get pending-fakfun)
-)
 (define-read-only (is-paused)
-  (var-get contract-paused)
+  (or
+    (contract-call? .fakfun-market-registry is-paused)
+    (not (contract-call? .fakfun-market-registry is-market current-contract))
+  )
 )
 
 (define-read-only (quote-fill
@@ -466,20 +305,10 @@
     nft-contract: nft-contract,
     token-id: token-id,
   })
-    bid (match (map-get? collections nft-contract)
-      collection (let (
-          (price (get top-amount bid))
-          (royalty-amount (/ (* price (get royalty-bps collection)) u10000))
-          (platform-amount (/ (* price (var-get platform-fee-bps)) u10000))
-        )
-        (some {
-          price: price,
-          seller-receives: (- price (+ royalty-amount platform-amount)),
-          royalty: royalty-amount,
-          platform-fee: platform-amount,
-          min-next-bid: (min-next-bid price),
-        })
-      )
+    bid (match (contract-call? .fakfun-market-registry quote nft-contract
+      (get top-amount bid)
+    )
+      q (some (merge q { min-next-bid: (min-next-bid (get top-amount bid)) }))
       none
     )
     none
