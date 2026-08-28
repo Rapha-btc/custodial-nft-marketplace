@@ -346,3 +346,60 @@ collection's `transfer` before whitelisting, the same way an FT's
 
 `simulations/collection-bids-edge-cases.js` keeps a deliberately lying NFT in
 the run so this assumption stays visible in the test output.
+
+## Collection bids: stxer simulation record
+
+Both bids contracts are verified with self-checking stxer harnesses in
+`simulations/` (each step's decoded result is asserted, plus balance deltas).
+Run any of them with `node simulations/<file>` (needs `stxer` 0.8.0+; the
+repo's `node_modules/stxer` may be symlinked to a newer copy).
+
+| Contract | Harness | Checks | Simulation |
+|---|---|---|---|
+| `fakfun-collection-bids` (FT: sBTC, PEPE) - pre-deploy source | `collection-bids-test.js` | 52/52 | https://stxer.xyz/simulations/mainnet/ab003924942312a86dd79d2aa5c0d0e7 |
+| `fakfun-collection-bids` - pre-deploy source | `collection-bids-edge-cases.js` | 81/81 | https://stxer.xyz/simulations/mainnet/b693cb46eb5962be5401c864b0a25f65 |
+| `SPV9K21….fakfun-collection-bids-stx` - DEPLOYED mainnet contract | `collection-bids-stx-test.js` | 42/42 | https://stxer.xyz/simulations/mainnet/c6ca39a8178e581507fe8723fcb0e328 |
+| `SPV9K21….fakfun-collection-bids-stx` - DEPLOYED mainnet contract | `collection-bids-stx-edge-cases.js` | 70/70 | https://stxer.xyz/simulations/mainnet/4f376adf1ffca428bf4a5ccef9119ca6 |
+
+The STX harnesses run against the live contract at mainnet tip (no deploy
+step) and derive bid ids from `get-last-bid-id`, so they keep working as real
+bids land. Rendezvous fuzzing (`rendezvous/`, `npm`-less: `scripts/rv-sync.sh`
+then `rv . fakfun-collection-bids invariant|test`) covers the FT contract:
+escrow == sum(price x remaining), no zero-remaining bids, fee caps, pending
+admin != current admin; property tests re-assert those after every action.
+
+### What is covered
+
+- Admin: only the `fakfun` var (not the deployer); propose / accept handover
+  with the 144 burn block cooldown (one block short still refused), overwrite
+  and cancel of a proposal, old admin locked out after handover; fee and
+  royalty caps; pause blocks place / fill / re-price but never cancel.
+- Bids: place (zero price, quantity cap, unknown collection, insufficient
+  funds), fill (own bid refused, non-owner refused by the NFT contract, wrong
+  NFT contract, quantity decrements and deletion at zero), re-price up and
+  down with escrow tracked at every step, cancel and double cancel, partial
+  fill then re-price then cancel arithmetic, dust prices whose fees round to
+  zero, zero-fee configuration, fee and royalty changes while bids are open.
+- Real-world NFT states: Gamma-listed token (NFT contract's `u106`), token
+  escrowed on our own marketplace (must be unlisted first), a whitelisted
+  collection disabled with a bid open (cancel still refunds).
+- Hostile inputs: `price x quantity` above u128 aborts with no state change;
+  a re-price whose escrow fits u128 fails on funds, not on arithmetic; a
+  lying NFT whose `transfer` is a no-op (documents the whitelist rule above).
+- Invariant at the end of every harness: the contract's token balance is
+  exactly what it started with.
+
+### Findings
+
+1. Fixed before deploy (FT contract): `accept-bid` looked the collection up
+   by the passed NFT trait instead of the bid's stored collection, so a wrong
+   NFT argument surfaced as `u302` and the royalty could in principle be read
+   from a different collection than the one bid on. Now keyed on the bid.
+2. Admin footgun, STX contract (not user-exploitable, no funds at risk): if
+   `royalty-recipient` or `platform-recipient` is set to the bids contract's
+   own principal, `stx-transfer?` refuses the self-transfer (`err u2`) and
+   every fill on that collection reverts until the recipient is fixed. Bids
+   stay open and cancellable. Never point a recipient at the contract.
+3. No path lets the admin move escrow: the only `stx-transfer?` /
+   `ft transfer` sites are inside `place-bid`, `cancel-bid`,
+   `update-bid-price` and `accept-bid`, each bound to the bid's own numbers.
