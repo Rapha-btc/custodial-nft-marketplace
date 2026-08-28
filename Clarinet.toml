@@ -31,3 +31,8 @@ callee_filter = false
 [repl.remote_data]
 enabled = true
 api_url = 'https://api.hiro.so'
+
+[contracts.fakfun-collection-bids]
+path = "contracts/fakfun-collection-bids.clar"
+clarity_version = 4
+epoch = 3.3

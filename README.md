@@ -301,3 +301,48 @@ node simulations/ft-unwhitelist-test.js
 ## License
 
 MIT
+
+## fakfun-collection-bids: the `"*"` asset wildcard in `with-ft`
+
+`fakfun-collection-bids.clar` pays out of escrow with
+
+```clarity
+(as-contract? ((with-ft (contract-of ft) "*" amount)) ...)
+```
+
+The `"*"` grants the callee an allowance of up to `amount` for ANY fungible
+token defined by that contract, not one named asset. A contract that defines
+several SIP-010 tokens (or a malicious one that defines a decoy) could move a
+different asset than the one escrowed, up to `amount`.
+
+This is safe here only because payment tokens are admin-whitelisted
+(`whitelist-ft`; sBTC and PEPE at deploy). Rules that keep it safe:
+
+- Whitelist only contracts that define exactly one fungible token.
+- Read the contract before whitelisting. `define-fungible-token` must appear
+  once.
+- Never make the FT whitelist permissionless.
+
+Passing the asset name explicitly would close this without the whitelist, at
+the cost of an extra argument on every bid, cancel, re-price and fill. Not
+worth it while the whitelist holds.
+
+### Rule: only real collections get whitelisted
+
+`accept-bid` calls the collection's `transfer` and trusts its result. It does
+not check the owner before, and it does not re-read `get-owner` after. Both
+checks were removed on purpose:
+
+- Before: redundant. A real SIP-009 contract refuses to move a token the
+  caller does not own (Bitcoin Pepe returns `err u1`).
+- After: only matters for a FAKE collection whose `transfer` returns `ok`
+  without moving the token. That contract would be paid out of escrow.
+
+So the safety of every fill rests on one rule, the same one the FT wildcard
+above rests on: **`set-collection` is only ever called for real, audited
+SIP-009 contracts.** We are not going to list fake ones. Read the
+collection's `transfer` before whitelisting, the same way an FT's
+`define-fungible-token` is read before `whitelist-ft`.
+
+`simulations/collection-bids-edge-cases.js` keeps a deliberately lying NFT in
+the run so this assumption stays visible in the test output.
