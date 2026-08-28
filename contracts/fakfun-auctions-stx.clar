@@ -4,7 +4,7 @@
 (define-constant MAX-INCREMENT-ABS u100000000)
 (define-constant MIN-DURATION u1)
 (define-constant MAX-DURATION u1008)
-(define-constant SNIPE-WINDOW u6)
+(define-constant MAX-SNIPE-WINDOW u36)
 
 (define-constant ERR-NOT-AUTHORIZED (err u300))
 (define-constant ERR-PAUSED (err u301))
@@ -23,6 +23,7 @@
 
 (define-data-var min-increment-bps uint u200)
 (define-data-var min-increment-abs uint u1000000)
+(define-data-var snipe-window uint u3)
 (define-data-var auction-nonce uint u0)
 
 (define-map auctions
@@ -78,6 +79,25 @@
     })
     (ok true)
   )
+)
+
+(define-public (set-snipe-window (blocks uint))
+  (begin
+    (asserts! (is-admin) ERR-NOT-AUTHORIZED)
+    (asserts! (and (> blocks u0) (<= blocks MAX-SNIPE-WINDOW))
+      ERR-INVALID-DURATION
+    )
+    (var-set snipe-window blocks)
+    (print {
+      event: "snipe-window-updated",
+      blocks: blocks,
+    })
+    (ok true)
+  )
+)
+
+(define-read-only (get-snipe-window)
+  (var-get snipe-window)
 )
 
 (define-read-only (min-next-bid (auction {
@@ -185,8 +205,8 @@
     (asserts! (< burn-block-height ends-at) ERR-AUCTION-ENDED)
     (asserts! (not (is-eq bidder (get seller auction))) ERR-CANNOT-FILL-OWN)
     (asserts! (>= amount (min-next-bid auction)) ERR-BID-TOO-LOW)
-    (let ((new-ends-at (if (< (- ends-at burn-block-height) SNIPE-WINDOW)
-        (+ burn-block-height SNIPE-WINDOW)
+    (let ((new-ends-at (if (< (- ends-at burn-block-height) (var-get snipe-window))
+        (+ burn-block-height (var-get snipe-window))
         ends-at
       )))
       (if (is-eq prev-bidder (some bidder))

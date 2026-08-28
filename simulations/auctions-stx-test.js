@@ -3,7 +3,7 @@
 // deployed): deploys both from ./contracts at mainnet tip, registers the
 // market, then walks seller-initiated timed auctions: NFT escrow, reserve /
 // duration bounds, increment rule, previous-top refund, own raise, anti-snipe
-// extension, bid after end, settle by anyone, expired auction returns NFT,
+// extension (default 3 blocks, admin-settable), bid after end, settle by anyone, expired auction returns NFT,
 // cancel only without bids, liar NFT rejected, fee split, balance deltas.
 //   node simulations/auctions-stx-test.js
 import fs from "node:fs";
@@ -90,13 +90,13 @@ cancel("seller cannot cancel with bids", SELLER, 1, "(err u326)");
 // ---- anti-snipe ----
 evalc("ends-at before snipe", endsAt(1), "E0");
 advance(139);
-bid("B1 21 with 5 blocks left -> extends", B1, 1, 21, "(ok true)");
-evalc("ends-at after snipe (= now + 6)", endsAt(1), "E1");
+bid("B1 21 with 5 blocks left -> no extension (window 3)", B1, 1, 21, "(ok true)");
+evalc("ends-at unchanged", endsAt(1), "E1");
 evalc("escrow 21", stxBal(CID), "C4");
 advance(3);
-bid("B2 22 with 3 left -> extends again", B2, 1, 22, "(ok true)");
-evalc("ends-at after 2nd snipe", endsAt(1), "E2");
-advance(6);
+bid("B2 22 with 2 left -> extends to now + 3", B2, 1, 22, "(ok true)");
+evalc("ends-at after snipe", endsAt(1), "E2");
+advance(3);
 bid("B1 23 after end", B1, 1, 23, "(err u323)");
 advance(5);
 bid("B1 23 well after end (no underflow)", B1, 1, 23, "(err u323)");
@@ -142,6 +142,11 @@ reg("admin unpauses registry", ADMIN, "set-paused", [boolCV(false)], "(ok true)"
 reg("admin re-registers market", ADMIN, "set-market", [principalCV(CID), boolCV(true)], "(ok true)");
 
 // ---- admin ----
+call("random cannot set snipe window", RANDOM, "set-snipe-window", [uintCV(6)], "(err u300)");
+call("snipe window 0 rejected", ADMIN, "set-snipe-window", [uintCV(0)], "(err u325)");
+call("snipe window 37 rejected", ADMIN, "set-snipe-window", [uintCV(37)], "(err u325)");
+call("admin sets snipe window 6", ADMIN, "set-snipe-window", [uintCV(6)], "(ok true)");
+evalc("snipe window 6", "(get-snipe-window)");
 call("random cannot set increment", RANDOM, "set-min-increment", [uintCV(500), uintCV(STX(2))], "(err u300)");
 call("bps above cap", ADMIN, "set-min-increment", [uintCV(1001), uintCV(STX(2))], "(err u313)");
 call("admin sets 5% / 2 STX", ADMIN, "set-min-increment", [uintCV(500), uintCV(STX(2))], "(ok true)");
@@ -174,8 +179,8 @@ const checks = [
   ["escrow C4 = 21", d("C4", "C0"), BigInt(STX(21))],
   ["escrow C5 = 0", d("C5", "C0"), 0n],
   ["contract holds nothing at end", d("C6", "C0"), 0n],
-  ["snipe 1 extended ends-at by 6 blocks past old end - 5", u(cap.E1) - u(cap.E0), 1n],
-  ["snipe 2 extended again by 3", u(cap.E2) - u(cap.E1), 3n],
+  ["bid with 5 left does not extend (window 3)", u(cap.E1) - u(cap.E0), 0n],
+  ["bid with 2 left extends by 1 (now + 3)", u(cap.E2) - u(cap.E1), 1n],
   ["seller +25.65 STX minus tx fees", between(d("S1", "S0"), BigInt(STX(25)), BigInt(STX(25.65))), true],
   ["B2 -22 STX minus tx fees", between(d("Z1", "Z0"), BigInt(STX(-23)), BigInt(STX(-22))), true],
   ["B1 -5 STX minus tx fees", between(d("A1", "A0"), BigInt(STX(-6)), BigInt(STX(-5))), true],
