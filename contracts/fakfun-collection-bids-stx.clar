@@ -158,6 +158,48 @@
   )
 )
 
+(define-constant ERR-BAD-ENTRY (err u317))
+
+(define-private (set-collection-entry
+    (entry {
+      nft-contract: principal,
+      royalty-bps: uint,
+      royalty-recipient: principal,
+    })
+    (acc (response uint uint))
+  )
+  (let ((n (try! acc)))
+    (asserts! (<= (get royalty-bps entry) MAX-ROYALTY-BPS) ERR-FEE-TOO-HIGH)
+    (map-set collections (get nft-contract entry) {
+      enabled: true,
+      royalty-bps: (get royalty-bps entry),
+      royalty-recipient: (get royalty-recipient entry),
+    })
+    (print {
+      event: "collection-updated",
+      nft-contract: (get nft-contract entry),
+      enabled: true,
+      royalty-bps: (get royalty-bps entry),
+      royalty-recipient: (get royalty-recipient entry),
+    })
+    (ok (+ n u1))
+  )
+)
+
+(define-public (set-collections (entries (list 50
+  {
+    nft-contract: principal,
+    royalty-bps: uint,
+    royalty-recipient: principal,
+  }
+)))
+  (begin
+    (asserts! (is-admin) ERR-NOT-AUTHORIZED)
+    (asserts! (> (len entries) u0) ERR-BAD-ENTRY)
+    (fold set-collection-entry entries (ok u0))
+  )
+)
+
 (define-public (place-bid
     (nft-contract principal)
     (price uint)
