@@ -51,8 +51,6 @@
   }
 )
 
-
-
 (define-data-var fakfun principal 'SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22)
 (define-data-var pending-fakfun (optional {
   principal: principal,
@@ -220,12 +218,6 @@
   )
 )
 
-;; ---------------------------------------------------------------------------
-;; Token bids: standing STX bids on a specific token id. No deadline.
-;; Only the top 2 bids (from 2 different wallets) stay escrowed; everyone
-;; else is refunded at outbid time. Owner accepts the top bid whenever.
-;; ---------------------------------------------------------------------------
-
 (define-map token-bids
   {
     nft-contract: principal,
@@ -244,11 +236,18 @@
 
 (define-read-only (min-next-bid (current uint))
   (let ((bump (/ (* current (var-get min-increment-bps)) u10000)))
-    (+ current (if (> bump (var-get min-increment-abs)) bump (var-get min-increment-abs)))
+    (+ current
+      (if (> bump (var-get min-increment-abs))
+        bump
+        (var-get min-increment-abs)
+      ))
   )
 )
 
-(define-private (pay-out (to principal) (amount uint))
+(define-private (pay-out
+    (to principal)
+    (amount uint)
+  )
   (as-contract? ((with-stx amount))
     (try! (stx-transfer? amount current-contract to))
   )
@@ -271,7 +270,10 @@
   )
   (let (
       (bidder tx-sender)
-      (key { nft-contract: nft-contract, token-id: token-id })
+      (key {
+        nft-contract: nft-contract,
+        token-id: token-id,
+      })
     )
     (asserts! (not (var-get contract-paused)) ERR-PAUSED)
     (asserts! (is-collection-enabled nft-contract) ERR-COLLECTION-NOT-WHITELISTED)
@@ -284,22 +286,25 @@
         )
         (asserts! (>= amount (min-next-bid top-amount)) ERR-BID-TOO-LOW)
         (if (is-eq bidder top-bidder)
-          ;; top bidder raises their own bid: pay the difference, second untouched
           (begin
             (try! (stx-transfer? (- amount top-amount) bidder current-contract))
-            (map-set token-bids key (merge existing {
-              top-amount: amount,
-              updated-at: burn-block-height,
-            }))
+            (map-set token-bids key
+              (merge existing {
+                top-amount: amount,
+                updated-at: burn-block-height,
+              })
+            )
           )
           (begin
             (try! (stx-transfer? amount bidder current-contract))
-            ;; old second is refunded (this is also the bidder's own old second, if any)
             (try! (refund-second second))
             (map-set token-bids key {
               top-bidder: bidder,
               top-amount: amount,
-              second: (some { bidder: top-bidder, amount: top-amount }),
+              second: (some {
+                bidder: top-bidder,
+                amount: top-amount,
+              }),
               updated-at: burn-block-height,
             })
           )
@@ -332,7 +337,10 @@
     (token-id uint)
   )
   (let (
-      (key { nft-contract: nft-contract, token-id: token-id })
+      (key {
+        nft-contract: nft-contract,
+        token-id: token-id,
+      })
       (existing (unwrap! (map-get? token-bids key) ERR-BID-NOT-FOUND))
       (second (get second existing))
     )
@@ -352,10 +360,12 @@
       (let ((s (unwrap! second ERR-NOT-BIDDER)))
         (asserts! (is-eq tx-sender (get bidder s)) ERR-NOT-BIDDER)
         (try! (pay-out tx-sender (get amount s)))
-        (map-set token-bids key (merge existing {
-          second: none,
-          updated-at: burn-block-height,
-        }))
+        (map-set token-bids key
+          (merge existing {
+            second: none,
+            updated-at: burn-block-height,
+          })
+        )
       )
     )
     (print {
@@ -376,11 +386,12 @@
   (let (
       (seller tx-sender)
       (nft-contract (contract-of nft))
-      (key { nft-contract: nft-contract, token-id: token-id })
+      (key {
+        nft-contract: nft-contract,
+        token-id: token-id,
+      })
       (existing (unwrap! (map-get? token-bids key) ERR-BID-NOT-FOUND))
-      (collection (unwrap! (map-get? collections nft-contract)
-        ERR-COLLECTION-NOT-WHITELISTED
-      ))
+      (collection (unwrap! (map-get? collections nft-contract) ERR-COLLECTION-NOT-WHITELISTED))
       (bidder (get top-bidder existing))
       (price (get top-amount existing))
       (royalty-amount (/ (* price (get royalty-bps collection)) u10000))
@@ -416,8 +427,14 @@
   )
 )
 
-(define-read-only (get-token-bid (nft-contract principal) (token-id uint))
-  (map-get? token-bids { nft-contract: nft-contract, token-id: token-id })
+(define-read-only (get-token-bid
+    (nft-contract principal)
+    (token-id uint)
+  )
+  (map-get? token-bids {
+    nft-contract: nft-contract,
+    token-id: token-id,
+  })
 )
 
 (define-read-only (get-collection (nft-contract principal))
@@ -428,13 +445,27 @@
   (default-to false (get enabled (map-get? collections nft-contract)))
 )
 
-(define-read-only (get-platform-fee-bps) (var-get platform-fee-bps))
-(define-read-only (get-fakfun) (var-get fakfun))
-(define-read-only (get-pending-fakfun) (var-get pending-fakfun))
-(define-read-only (is-paused) (var-get contract-paused))
+(define-read-only (get-platform-fee-bps)
+  (var-get platform-fee-bps)
+)
+(define-read-only (get-fakfun)
+  (var-get fakfun)
+)
+(define-read-only (get-pending-fakfun)
+  (var-get pending-fakfun)
+)
+(define-read-only (is-paused)
+  (var-get contract-paused)
+)
 
-(define-read-only (quote-fill (nft-contract principal) (token-id uint))
-  (match (map-get? token-bids { nft-contract: nft-contract, token-id: token-id })
+(define-read-only (quote-fill
+    (nft-contract principal)
+    (token-id uint)
+  )
+  (match (map-get? token-bids {
+    nft-contract: nft-contract,
+    token-id: token-id,
+  })
     bid (match (map-get? collections nft-contract)
       collection (let (
           (price (get top-amount bid))

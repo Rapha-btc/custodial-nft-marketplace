@@ -360,6 +360,7 @@ repo's `node_modules/stxer` may be symlinked to a newer copy).
 | `fakfun-collection-bids` - pre-deploy source | `collection-bids-edge-cases.js` | 81/81 | https://stxer.xyz/simulations/mainnet/b693cb46eb5962be5401c864b0a25f65 |
 | `SPV9K21….fakfun-collection-bids-stx` - DEPLOYED mainnet contract | `collection-bids-stx-test.js` | 42/42 | https://stxer.xyz/simulations/mainnet/c6ca39a8178e581507fe8723fcb0e328 |
 | `SPV9K21….fakfun-collection-bids-stx` - DEPLOYED mainnet contract | `collection-bids-stx-edge-cases.js` | 70/70 | https://stxer.xyz/simulations/mainnet/4f376adf1ffca428bf4a5ccef9119ca6 |
+| `fakfun-token-bids-stx` (standing per-token STX bids, top-2 escrow) - pre-deploy source | `token-bids-stx-test.js` | 66/66 | https://stxer.xyz/simulations/mainnet/c9371ae71699c71b72a5c6f49efb9410 |
 
 The STX harnesses run against the live contract at mainnet tip (no deploy
 step) and derive bid ids from `get-last-bid-id`, so they keep working as real
@@ -367,6 +368,15 @@ bids land. Rendezvous fuzzing (`rendezvous/`, `npm`-less: `scripts/rv-sync.sh`
 then `rv . fakfun-collection-bids invariant|test`) covers the FT contract:
 escrow == sum(price x remaining), no zero-remaining bids, fee caps, pending
 admin != current admin; property tests re-assert those after every action.
+
+`fakfun-token-bids-stx` is the per-token twin: a bid names one token id, only
+the top 2 bids (2 different wallets) stay escrowed and everyone else is
+refunded at outbid time, next bid >= top + max(`min-increment-bps`,
+`min-increment-abs`) (admin-settable, defaults 2% / 1 STX, caps 10% / 100
+STX), top bidder raising pays only the difference, cancelling the top bid
+promotes the second, `accept-bid` moves the NFT to the top bidder, splits
+seller / royalty / platform and refunds the second. No deadline. The seller-
+initiated timed auction lives in `fakfun-auctions-stx` (not simmed yet).
 
 ### What is covered
 
