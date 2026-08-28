@@ -205,10 +205,13 @@
     (asserts! (< burn-block-height ends-at) ERR-AUCTION-ENDED)
     (asserts! (not (is-eq bidder (get seller auction))) ERR-CANNOT-FILL-OWN)
     (asserts! (>= amount (min-next-bid auction)) ERR-BID-TOO-LOW)
-    (let ((new-ends-at (if (< (- ends-at burn-block-height) (var-get snipe-window))
-        (+ burn-block-height (var-get snipe-window))
-        ends-at
-      )))
+    (let (
+        (window-snipe (var-get snipe-window))
+        (new-ends-at (if (< (- ends-at burn-block-height) window-snipe)
+          (+ burn-block-height window-snipe)
+          ends-at
+        ))
+      )
       (if (is-eq prev-bidder (some bidder))
         (try! (stx-transfer? (- amount prev-amount) bidder current-contract))
         (begin
