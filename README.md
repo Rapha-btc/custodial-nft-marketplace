@@ -361,7 +361,7 @@ repo's `node_modules/stxer` may be symlinked to a newer copy).
 | `SPV9K21….fakfun-collection-bids-stx` - DEPLOYED mainnet contract | `collection-bids-stx-test.js` | 42/42 | https://stxer.xyz/simulations/mainnet/c6ca39a8178e581507fe8723fcb0e328 |
 | `SPV9K21….fakfun-collection-bids-stx` - DEPLOYED mainnet contract | `collection-bids-stx-edge-cases.js` | 70/70 | https://stxer.xyz/simulations/mainnet/4f376adf1ffca428bf4a5ccef9119ca6 |
 | `fakfun-market-registry` + `fakfun-token-bids-stx` (standing per-token STX bids, top-2 escrow) - pre-deploy source | `token-bids-stx-test.js` | 80/80 | https://stxer.xyz/simulations/mainnet/0ffeccc2bc0ee890f686d43f88c817dd |
-| `fakfun-market-registry` + `fakfun-auctions-stx` (seller timed auctions, anti-snipe) - pre-deploy source | `auctions-stx-test.js` | 66/66 | https://stxer.xyz/simulations/mainnet/1dc770e3be4b58f432f8ee9003fe1c78 |
+| `fakfun-market-registry` + `fakfun-auctions-stx` (seller timed auctions, anti-snipe) - pre-deploy source | `auctions-stx-test.js` | 67/67 | https://stxer.xyz/simulations/mainnet/521ebd28b796c5bf57e5ebb847bbe963 |
 
 The STX harnesses run against the live contract at mainnet tip (no deploy
 step) and derive bid ids from `get-last-bid-id`, so they keep working as real

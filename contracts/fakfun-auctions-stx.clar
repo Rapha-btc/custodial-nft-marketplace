@@ -174,10 +174,6 @@
       (prev-bidder (get top-bidder auction))
       (prev-amount (get top-amount auction))
       (ends-at (get ends-at auction))
-      (new-ends-at (if (< (- ends-at burn-block-height) SNIPE-WINDOW)
-        (+ burn-block-height SNIPE-WINDOW)
-        ends-at
-      ))
     )
     (asserts! (is-live) ERR-PAUSED)
     (asserts!
@@ -189,27 +185,32 @@
     (asserts! (< burn-block-height ends-at) ERR-AUCTION-ENDED)
     (asserts! (not (is-eq bidder (get seller auction))) ERR-CANNOT-FILL-OWN)
     (asserts! (>= amount (min-next-bid auction)) ERR-BID-TOO-LOW)
-    (if (is-eq prev-bidder (some bidder))
-      (try! (stx-transfer? (- amount prev-amount) bidder current-contract))
-      (begin
-        (try! (stx-transfer? amount bidder current-contract))
-        (match prev-bidder
-          p (try! (pay-out p prev-amount))
-          true
+    (let ((new-ends-at (if (< (- ends-at burn-block-height) SNIPE-WINDOW)
+        (+ burn-block-height SNIPE-WINDOW)
+        ends-at
+      )))
+      (if (is-eq prev-bidder (some bidder))
+        (try! (stx-transfer? (- amount prev-amount) bidder current-contract))
+        (begin
+          (try! (stx-transfer? amount bidder current-contract))
+          (match prev-bidder
+            p (try! (pay-out p prev-amount))
+            true
+          )
         )
       )
+      (map-set auctions auction-id
+        (merge auction {
+          top-bidder: (some bidder),
+          top-amount: amount,
+          ends-at: new-ends-at,
+        })
+      )
+      (try! (log "auction-bid" (get nft-contract auction) (get token-id auction)
+        auction-id bidder prev-bidder amount u0 u0 new-ends-at
+      ))
+      (ok true)
     )
-    (map-set auctions auction-id
-      (merge auction {
-        top-bidder: (some bidder),
-        top-amount: amount,
-        ends-at: new-ends-at,
-      })
-    )
-    (try! (log "auction-bid" (get nft-contract auction) (get token-id auction)
-      auction-id bidder prev-bidder amount u0 u0 new-ends-at
-    ))
-    (ok true)
   )
 )
 

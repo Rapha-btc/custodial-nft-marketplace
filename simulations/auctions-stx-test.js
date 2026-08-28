@@ -98,6 +98,8 @@ bid("B2 22 with 3 left -> extends again", B2, 1, 22, "(ok true)");
 evalc("ends-at after 2nd snipe", endsAt(1), "E2");
 advance(6);
 bid("B1 23 after end", B1, 1, 23, "(err u323)");
+advance(5);
+bid("B1 23 well after end (no underflow)", B1, 1, 23, "(err u323)");
 evalc("quote-auction 1 ended", "(quote-auction u1)");
 
 // ---- settle ----
