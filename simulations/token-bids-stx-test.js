@@ -5,7 +5,8 @@
 // increment rule (max 2% / 1 STX), top-2 escrow with refund of everyone else,
 // own-raise pays the difference, second re-bids, cancel top -> second promoted,
 // accept -> NFT to top / second refunded / fee split, pause, set-min-increment.
-//   node simulations/token-bids-stx-test.js
+//   node simulations/token-bids-stx-test.js            (in-sim deploy)
+//   DEPLOYED=1 node simulations/token-bids-stx-test.js (live contracts)
 import fs from "node:fs";
 import { uintCV, principalCV, contractPrincipalCV, boolCV, stringAsciiCV, noneCV, deserializeCV, cvToString, ClarityVersion } from "@stacks/transactions";
 import { SimulationBuilder, getSimulationResult } from "stxer";
@@ -41,9 +42,13 @@ const bid = (label, sender, id, amt, expect) => call(label, sender, "place-bid",
 const cancel = (label, sender, id, expect) => call(label, sender, "cancel-bid", [nft, uintCV(id)], expect);
 const accept = (label, sender, id, expect) => call(label, sender, "accept-bid", [uintCV(id), cp(BPEPE)], expect);
 
-for (const n of [REG, NAME]) {
-  b.withSender(ADMIN).addContractDeploy({ contract_name: n, source_code: fs.readFileSync(`./contracts/${n}.clar`, "utf8"), clarity_version: ClarityVersion.Clarity4 });
-  plan.push({ kind: "tx", label: `deploy ${n}`, expect: "(ok true)" });
+// DEPLOYED=1 -> run against the live SPV9K21… contracts at mainnet tip
+// (deployed 2026-08-28); default deploys the ./contracts sources in-sim.
+if (!process.env.DEPLOYED) {
+  for (const n of [REG, NAME]) {
+    b.withSender(ADMIN).addContractDeploy({ contract_name: n, source_code: fs.readFileSync(`./contracts/${n}.clar`, "utf8"), clarity_version: ClarityVersion.Clarity4 });
+    plan.push({ kind: "tx", label: `deploy ${n}`, expect: "(ok true)" });
+  }
 }
 
 reg("random cannot whitelist", RANDOM, "set-collection", [nft, boolCV(true), uintCV(250), principalCV(ROYALTY)], "(err u300)");

@@ -5,7 +5,8 @@
 // duration bounds, increment rule, previous-top refund, own raise, anti-snipe
 // extension (default 3 blocks, admin-settable), bid after end, settle by anyone, expired auction returns NFT,
 // cancel only without bids, liar NFT rejected, fee split, balance deltas.
-//   node simulations/auctions-stx-test.js
+//   node simulations/auctions-stx-test.js            (in-sim deploy)
+//   DEPLOYED=1 node simulations/auctions-stx-test.js (live contracts)
 import fs from "node:fs";
 import { uintCV, principalCV, contractPrincipalCV, boolCV, deserializeCV, cvToString, ClarityVersion } from "@stacks/transactions";
 import { SimulationBuilder, getSimulationResult } from "stxer";
@@ -42,9 +43,13 @@ const bid = (label, sender, a, amt, expect) => call(label, sender, "bid", [uintC
 const settle = (label, sender, a, expect, n = BPEPE) => call(label, sender, "settle", [uintCV(a), cp(n)], expect);
 const cancel = (label, sender, a, expect, n = BPEPE) => call(label, sender, "cancel-auction", [uintCV(a), cp(n)], expect);
 
-for (const n of [REG, NAME]) {
-  b.withSender(ADMIN).addContractDeploy({ contract_name: n, source_code: fs.readFileSync(`./contracts/${n}.clar`, "utf8"), clarity_version: ClarityVersion.Clarity4 });
-  plan.push({ kind: "tx", label: `deploy ${n}`, expect: "(ok true)" });
+// DEPLOYED=1 -> run against the live SPV9K21… contracts at mainnet tip
+// (deployed 2026-08-28); default deploys the ./contracts sources in-sim.
+if (!process.env.DEPLOYED) {
+  for (const n of [REG, NAME]) {
+    b.withSender(ADMIN).addContractDeploy({ contract_name: n, source_code: fs.readFileSync(`./contracts/${n}.clar`, "utf8"), clarity_version: ClarityVersion.Clarity4 });
+    plan.push({ kind: "tx", label: `deploy ${n}`, expect: "(ok true)" });
+  }
 }
 b.withSender(RANDOM).addContractDeploy({ contract_name: LIAR[1], clarity_version: ClarityVersion.Clarity4, source_code: `(impl-trait 'SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9.nft-trait.nft-trait)
 (define-read-only (get-last-token-id) (ok u9999))

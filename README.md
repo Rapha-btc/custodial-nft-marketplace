@@ -362,6 +362,8 @@ repo's `node_modules/stxer` may be symlinked to a newer copy).
 | `SPV9K21….fakfun-collection-bids-stx` - DEPLOYED mainnet contract | `collection-bids-stx-edge-cases.js` | 70/70 | https://stxer.xyz/simulations/mainnet/4f376adf1ffca428bf4a5ccef9119ca6 |
 | `fakfun-market-registry` + `fakfun-token-bids-stx` (standing per-token STX bids, top-2 escrow) - pre-deploy source | `token-bids-stx-test.js` | 80/80 | https://stxer.xyz/simulations/mainnet/1235ae5302408cf65e62639ac27ce210 |
 | `fakfun-market-registry` + `fakfun-auctions-stx` (seller timed auctions, anti-snipe) - pre-deploy source | `auctions-stx-test.js` | 71/71 | https://stxer.xyz/simulations/mainnet/b9ca08171a056be86b40626b80843dd4 |
+| `SPV9K21….fakfun-market-registry` + `SPV9K21….fakfun-token-bids-stx` - DEPLOYED mainnet contracts | `DEPLOYED=1 token-bids-stx-test.js` | 78/78 | https://stxer.xyz/simulations/mainnet/d3cd4d84c797ae4406edaea7949a3f32 |
+| `SPV9K21….fakfun-market-registry` + `SPV9K21….fakfun-auctions-stx` - DEPLOYED mainnet contracts | `DEPLOYED=1 auctions-stx-test.js` | 69/69 | https://stxer.xyz/simulations/mainnet/e6262f716f7ee279f05c0f254ba01bd5 |
 
 The STX harnesses run against the live contract at mainnet tip (no deploy
 step) and derive bid ids from `get-last-bid-id`, so they keep working as real
@@ -395,7 +397,10 @@ of 1..1008 burn blocks, same increment rule, previous top refunded on
 outbid, a bid in the last `snipe-window` blocks (admin-settable, default 3, cap 36) extends the end to now + window, anyone can
 `settle` after the end (winner gets the NFT, or it returns to the seller),
 `cancel-auction` only while there are no bids. Deploy order: registry ->
-`set-collection(s)` -> markets -> `set-market` each.
+`set-collection(s)` -> markets -> `set-market` each. Deployed 2026-08-28 as
+`SPV9K21….fakfun-market-registry` (0x1d41cbb7…), `….fakfun-token-bids-stx`
+(0x0782dba1…), `….fakfun-auctions-stx` (0x313a5e5e…); `DEPLOYED=1` runs the
+harnesses against them.
 
 Gotcha: `contract-call?` into the registry must use the literal
 `.fakfun-market-registry`; a `define-constant` alias turns it into a dynamic
