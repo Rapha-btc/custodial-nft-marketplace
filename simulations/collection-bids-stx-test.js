@@ -1,11 +1,14 @@
 // collection-bids-stx-test.js
-// stxer harness against the DEPLOYED native-STX bids contract
-// (SPV9K21….fakfun-collection-bids-stx) at mainnet tip: set-collections
+// stxer harness for fakfun-collection-bids-stx-v1 at mainnet tip. Default
+// deploys ./contracts/fakfun-collection-bids-stx.clar in-sim as -v1 (ids start
+// at 1); DEPLOYED=1 runs against the live -v1 (ids from live get-last-bid-id): set-collections
 // batch, STX escrow / fill / re-price / cancel / pause / handover, own-fill
 // refusal, uSTX balance deltas. Bid ids are derived from the live
 // get-last-bid-id so the harness keeps working as real bids land.
 //   node simulations/collection-bids-stx-test.js
-import { uintCV, principalCV, contractPrincipalCV, boolCV, listCV, tupleCV, deserializeCV, cvToString, cvToHex, hexToCV, cvToJSON } from "@stacks/transactions";
+//   DEPLOYED=1 node simulations/collection-bids-stx-test.js
+import fs from "node:fs";
+import { ClarityVersion, uintCV, principalCV, contractPrincipalCV, boolCV, listCV, tupleCV, deserializeCV, cvToString, cvToHex, hexToCV, cvToJSON } from "@stacks/transactions";
 import { SimulationBuilder, getSimulationResult } from "stxer";
 
 const NODE = "http://77.42.3.101/stacks-api";
@@ -15,7 +18,8 @@ const BIDDER = "SP1NPDHF9CQ8B9Q045CCQS1MR9M9SGJ5TT6WFFCD2";  // ~2,300 STX liqui
 const RANDOM = "SP2C7BCAP2NH3EYWCCVHJ6K0DMZBXDFKQ56KR7QN2";
 const ROYALTY = "SM2J5VCY4DCFX6VZYDANHMXA3VN9DMWYCEK7Y8D93";
 const PLATFORM = "SMH8FRN30ERW1SX26NJTJCKTDR3H27NRJ6W75WQE";
-const NAME = "fakfun-collection-bids-stx";
+const DEPLOYED = !!process.env.DEPLOYED;
+const NAME = "fakfun-collection-bids-stx-v1";
 const CID = `${ADMIN}.${NAME}`;
 const BPEPE = ["SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ", "bitcoin-pepe"];
 const cp = ([a, n]) => contractPrincipalCV(a, n);
@@ -23,11 +27,10 @@ const nft = principalCV(BPEPE.join("."));
 const STX = (n) => n * 1_000_000;
 
 // live last-bid-id -> ids this run will create
-const r = await fetch(`${NODE}/v2/contracts/call-read/${ADMIN}/${NAME}/get-last-bid-id?tip=latest`, {
+const LAST = DEPLOYED ? Number(cvToJSON(hexToCV((await fetch(`${NODE}/v2/contracts/call-read/${ADMIN}/${NAME}/get-last-bid-id?tip=latest`, {
   method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sender: ADMIN, arguments: [] }),
-}).then((x) => x.json());
-const LAST = Number(cvToJSON(hexToCV(r.result)).value);
-const B1 = LAST + 1, B2 = LAST + 2, B3 = LAST + 3;
+}).then((x) => x.json())).result)).value) : 0;
+const B1 = LAST + 1, B2 = LAST + 2, B3 = LAST + 3, B4 = LAST + 4;
 console.log(`live last-bid-id = ${LAST}; this run uses ${B1}..${B3}`);
 
 const plan = [];
@@ -37,6 +40,11 @@ const evalc = (label, code, capture) => { b.addEvalCode(CID, code); plan.push({ 
 const advance = (n) => { b.addAdvanceBlocks({ bitcoin_blocks: n, stacks_blocks_per_bitcoin: 1 }); plan.push({ kind: "advance", label: `advance ${n}` }); };
 const stxBal = (who) => `(stx-get-balance '${who})`;
 const owner = (id) => `(contract-call? 'SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ.bitcoin-pepe get-owner u${id})`;
+
+if (!DEPLOYED) {
+  b.withSender(ADMIN).addContractDeploy({ contract_name: NAME, source_code: fs.readFileSync("./contracts/fakfun-collection-bids-stx.clar", "utf8"), clarity_version: ClarityVersion.Clarity4 });
+  plan.push({ kind: "tx", label: `deploy ${NAME}`, expect: "(ok true)" });
+}
 
 evalc("fakfun admin is chavita", "(get-fakfun)");
 
@@ -68,10 +76,11 @@ call("more STX than bidder has", BIDDER, "place-bid", [nft, uintCV(STX(5000)), u
 
 // ---- fill ----
 evalc(`quote-fill ${B1} (48.75 STX net)`, `(quote-fill u${B1})`);
-call("bidder cannot fill own", BIDDER, "accept-bid", [uintCV(B1), uintCV(964), cp(BPEPE)], "(err u311)");
-call("random does not own #964 -> NFT contract refuses", RANDOM, "accept-bid", [uintCV(B1), uintCV(964), cp(BPEPE)], "(err u1)");
-call("wrong NFT contract", SELLER, "accept-bid", [uintCV(B1), uintCV(964), cp(["SP2ZNGJ85ENDY6QRHQ5P2D4FXKGZWCKTB2T0Z55KS", "sbtc-fakfun-amm-lp-v1"])], "(err u308)");
-call("seller fills with #964", SELLER, "accept-bid", [uintCV(B1), uintCV(964), cp(BPEPE)], "(ok true)");
+call("bidder cannot fill own", BIDDER, "accept-bid", [uintCV(B1), uintCV(964), cp(BPEPE), uintCV(STX(50))], "(err u311)");
+call("random does not own #964 -> NFT contract refuses", RANDOM, "accept-bid", [uintCV(B1), uintCV(964), cp(BPEPE), uintCV(STX(50))], "(err u1)");
+call("wrong NFT contract", SELLER, "accept-bid", [uintCV(B1), uintCV(964), cp(["SP2ZNGJ85ENDY6QRHQ5P2D4FXKGZWCKTB2T0Z55KS", "sbtc-fakfun-amm-lp-v1"]), uintCV(STX(50))], "(err u308)");
+call("stale expected price 49 rejected", SELLER, "accept-bid", [uintCV(B1), uintCV(964), cp(BPEPE), uintCV(STX(49))], "(err u318)");
+call("seller fills with #964", SELLER, "accept-bid", [uintCV(B1), uintCV(964), cp(BPEPE), uintCV(STX(50))], "(ok true)");
 evalc("#964 -> bidder", owner(964));
 evalc(`bid ${B1} remaining 1`, `(get-bid u${B1})`);
 evalc("seller STX 1", stxBal(SELLER), "S1");
@@ -83,9 +92,9 @@ call("raise to 60 STX (+10)", BIDDER, "update-bid-price", [uintCV(B1), uintCV(ST
 evalc("contract STX = 60", stxBal(CID), "C2");
 call("lower to 40 STX (-20)", BIDDER, "update-bid-price", [uintCV(B1), uintCV(STX(40))], "(ok true)");
 evalc("contract STX = 40", stxBal(CID), "C3");
-call("seller fills with #967 at 40", SELLER, "accept-bid", [uintCV(B1), uintCV(967), cp(BPEPE)], "(ok true)");
+call("seller fills with #967 at 40", SELLER, "accept-bid", [uintCV(B1), uintCV(967), cp(BPEPE), uintCV(STX(40))], "(ok true)");
 evalc(`bid ${B1} gone`, `(get-bid u${B1})`);
-call("cannot fill again", SELLER, "accept-bid", [uintCV(B1), uintCV(1654), cp(BPEPE)], "(err u306)");
+call("cannot fill again", SELLER, "accept-bid", [uintCV(B1), uintCV(1654), cp(BPEPE), uintCV(STX(40))], "(err u306)");
 evalc("contract STX = 0", stxBal(CID), "C4");
 
 // ---- cancel ----
@@ -98,9 +107,21 @@ call("cancel again", BIDDER, "cancel-bid", [uintCV(B2)], "(err u306)");
 call(`bidder: 6 STX x1 -> bid ${B3}`, BIDDER, "place-bid", [nft, uintCV(STX(6)), uintCV(1)], `(ok u${B3})`);
 call("admin pauses", ADMIN, "set-paused", [boolCV(true)], "(ok true)");
 call("no bids while paused", BIDDER, "place-bid", [nft, uintCV(STX(1)), uintCV(1)], "(err u301)");
-call("no fills while paused", SELLER, "accept-bid", [uintCV(B3), uintCV(1654), cp(BPEPE)], "(err u301)");
+call("no fills while paused", SELLER, "accept-bid", [uintCV(B3), uintCV(1654), cp(BPEPE), uintCV(STX(6))], "(err u301)");
 call("cancel works while paused", BIDDER, "cancel-bid", [uintCV(B3)], `(ok u${STX(6)})`);
 call("admin unpauses", ADMIN, "set-paused", [boolCV(false)], "(ok true)");
+
+// ---- Proud Haven replay: re-price down ahead of the seller's accept ----
+call(`bidder: 100 STX x1 -> bid ${B4}`, BIDDER, "place-bid", [nft, uintCV(STX(100)), uintCV(1)], `(ok u${B4})`);
+evalc("escrow 100", stxBal(CID), "CA1");
+call("bidder front-runs: re-prices to 1 uSTX", BIDDER, "update-bid-price", [uintCV(B4), uintCV(1)], "(ok true)");
+evalc("escrow 1 uSTX", stxBal(CID), "CA2");
+evalc("seller before stale accept", stxBal(SELLER), "SA0");
+call("seller's accept at 100 lands on the 1 uSTX bid -> ERR-BID-CHANGED", SELLER, "accept-bid", [uintCV(B4), uintCV(1654), cp(BPEPE), uintCV(STX(100))], "(err u318)");
+evalc("#1654 still with seller", owner(1654));
+evalc("seller unchanged (minus tx fee)", stxBal(SELLER), "SA1");
+call("bidder cancels the dust bid", BIDDER, "cancel-bid", [uintCV(B4)], "(ok u1)");
+evalc("escrow 0", stxBal(CID), "CA3");
 
 // ---- handover ----
 call("random cannot propose", RANDOM, "propose-fakfun", [principalCV(RANDOM)], "(err u300)");
@@ -136,6 +157,8 @@ const checks = [
   ["escrow after raise", u(cap.C2) - u(cap.C0), BigInt(STX(60))],
   ["escrow after lower", u(cap.C3) - u(cap.C0), BigInt(STX(40))],
   ["escrow after close", u(cap.C4) - u(cap.C0), 0n],
+  ["replay: escrow 100 -> 1 uSTX -> 0", [u(cap.CA1) - u(cap.C0), u(cap.CA2) - u(cap.C0), u(cap.CA3) - u(cap.C0)].join(","), [BigInt(STX(100)), 1n, 0n].join(",")],
+  ["replay: #1654 never moved, seller only paid a tx fee", (u(cap.SA1) - u(cap.SA0)) > BigInt(-STX(1)) && (u(cap.SA1) - u(cap.SA0)) <= 0n, true],
   ["contract STX unchanged at end", u(cap.C5) - u(cap.C0), 0n],
   ["seller net 85.5 STX (fees) minus tx fees", (u(cap.S2) - u(cap.S0)) > BigInt(STX(85)) && (u(cap.S2) - u(cap.S0)) <= BigInt(STX(85.5)), true],
   ["royalty +2.25 STX", u(cap.R2) - u(cap.R0), BigInt(STX(2.25))],

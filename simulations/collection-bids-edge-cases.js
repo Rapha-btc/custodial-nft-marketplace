@@ -23,7 +23,7 @@ const RANDOM = "SP2C7BCAP2NH3EYWCCVHJ6K0DMZBXDFKQ56KR7QN2";
 const ROYALTY = "SP3TA7SMY7APYR9SFKDT0527NC0GWR84S3AHEM0NE";
 const PLATFORM2 = "SP3A4CP63QJB1R0EJR3TJ1PN16FC5HVJSPT77C8C0";
 
-const NAME = "fakfun-collection-bids";
+const NAME = "fakfun-collection-bids-v1";
 const CID = `${ADMIN}.${NAME}`;
 const BPEPE = ["SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ", "bitcoin-pepe"];
 const SBTC = ["SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4", "sbtc-token"];
@@ -64,7 +64,7 @@ evalc("is-paused = false", "(is-paused)");
 evalc("platform fee = u250", "(get-platform-fee-bps)");
 call("cancel unknown bid", BIDDER, "cancel-bid", [uintCV(1), cp(SBTC)], "(err u306)");
 call("re-price unknown bid", BIDDER, "update-bid-price", [uintCV(1), cp(SBTC), uintCV(1)], "(err u306)");
-call("fill unknown bid", SELLER, "accept-bid", [uintCV(1), uintCV(267), cp(BPEPE), cp(SBTC)], "(err u306)");
+call("fill unknown bid", SELLER, "accept-bid", [uintCV(1), uintCV(267), cp(BPEPE), cp(SBTC), uintCV(1)], "(err u306)");
 
 // ---- fee admin ----
 call("random cannot set platform fee", RANDOM, "set-platform-fee", [uintCV(100)], "(err u300)");
@@ -85,7 +85,7 @@ evalc("bidder PEPE 0", pepeBal(BIDDER), "BP0");
 evalc("seller PEPE 0", pepeBal(SELLER), "SP0");
 call("bid 1: 10,000 sats x1", BIDDER, "place-bid", [nft, cp(SBTC), uintCV(10000), uintCV(1)], "(ok u1)");
 evalc("quote-fill 1 (8,500 net)", "(quote-fill u1)");
-call("fill bid 1 with #267", SELLER, "accept-bid", [uintCV(1), uintCV(267), cp(BPEPE), cp(SBTC)], "(ok true)");
+call("fill bid 1 with #267", SELLER, "accept-bid", [uintCV(1), uintCV(267), cp(BPEPE), cp(SBTC), uintCV(10000)], "(ok true)");
 evalc("#267 -> bidder", owner(267));
 evalc("seller sBTC 1", sbtcBal(SELLER), "S1");
 evalc("royalty sBTC 1", sbtcBal(ROYALTY), "R1");
@@ -97,7 +97,7 @@ call("PEPE re-price up to 1.5M", BIDDER, "update-bid-price", [uintCV(2), cp(PEPE
 evalc("contract PEPE = 3M", pepeBal(CID), "CP2");
 call("PEPE re-price zero rejected", BIDDER, "update-bid-price", [uintCV(2), cp(PEPE), uintCV(0)], "(err u304)");
 call("PEPE re-price wrong FT", BIDDER, "update-bid-price", [uintCV(2), cp(SBTC), uintCV(1)], "(err u309)");
-call("fill bid 2 with #274 (1 of 2)", SELLER, "accept-bid", [uintCV(2), uintCV(274), cp(BPEPE), cp(PEPE)], "(ok true)");
+call("fill bid 2 with #274 (1 of 2)", SELLER, "accept-bid", [uintCV(2), uintCV(274), cp(BPEPE), cp(PEPE), uintCV(1_500_000_000)], "(ok true)");
 evalc("bid 2 remaining 1 at 1.5M", "(get-bid u2)");
 call("PEPE re-price down to 1.2M (refund 300k)", BIDDER, "update-bid-price", [uintCV(2), cp(PEPE), uintCV(1_200_000_000)], "(ok true)");
 evalc("contract PEPE = 1.2M", pepeBal(CID), "CP3");
@@ -111,14 +111,14 @@ call("platform fee to 0", ADMIN, "set-platform-fee", [uintCV(0)], "(ok true)");
 call("royalty to 0", ADMIN, "set-collection", [nft, boolCV(true), uintCV(0), principalCV(ROYALTY)], "(ok true)");
 call("bid 3: 1,000 sats x1", BIDDER, "place-bid", [nft, cp(SBTC), uintCV(1000), uintCV(1)], "(ok u3)");
 evalc("quote-fill 3 (1,000 net, no fees)", "(quote-fill u3)");
-call("fill bid 3 with #901 (no fee transfers)", SELLER, "accept-bid", [uintCV(3), uintCV(901), cp(BPEPE), cp(SBTC)], "(ok true)");
+call("fill bid 3 with #901 (no fee transfers)", SELLER, "accept-bid", [uintCV(3), uintCV(901), cp(BPEPE), cp(SBTC), uintCV(1000)], "(ok true)");
 evalc("seller sBTC 2", sbtcBal(SELLER), "S2");
 // fees that round to zero: 2.5% of 39 sats = 0
 call("platform fee back to 2.5%", ADMIN, "set-platform-fee", [uintCV(250)], "(ok true)");
 call("royalty back to 2.5%", ADMIN, "set-collection", [nft, boolCV(true), uintCV(250), principalCV(ROYALTY)], "(ok true)");
 call("bid 4: 39 sats x1 (fees round to 0)", BIDDER, "place-bid", [nft, cp(SBTC), uintCV(39), uintCV(1)], "(ok u4)");
 evalc("quote-fill 4", "(quote-fill u4)");
-call("fill bid 4 with #1654", SELLER, "accept-bid", [uintCV(4), uintCV(1654), cp(BPEPE), cp(SBTC)], "(ok true)");
+call("fill bid 4 with #1654", SELLER, "accept-bid", [uintCV(4), uintCV(1654), cp(BPEPE), cp(SBTC), uintCV(39)], "(ok true)");
 evalc("seller sBTC 3", sbtcBal(SELLER), "S3");
 
 // ---- insufficient funds / max quantity ----
@@ -132,7 +132,7 @@ call("bid 6: 2,000 sats x1", BIDDER, "place-bid", [nft, cp(SBTC), uintCV(2000), 
 call("admin disables bitcoin-pepe", ADMIN, "set-collection", [nft, boolCV(false), uintCV(250), principalCV(ROYALTY)], "(ok true)");
 evalc("is-collection-enabled = false", `(is-collection-enabled '${BPEPE.join(".")})`);
 call("no new bids on disabled collection", BIDDER, "place-bid", [nft, cp(SBTC), uintCV(1000), uintCV(1)], "(err u302)");
-call("no fills on disabled collection", SELLER, "accept-bid", [uintCV(6), uintCV(340), cp(BPEPE), cp(SBTC)], "(err u302)");
+call("no fills on disabled collection", SELLER, "accept-bid", [uintCV(6), uintCV(340), cp(BPEPE), cp(SBTC), uintCV(2000)], "(err u302)");
 call("no re-price on disabled collection", BIDDER, "update-bid-price", [uintCV(6), cp(SBTC), uintCV(2500)], "(err u302)");
 call("cancel still refunds", BIDDER, "cancel-bid", [uintCV(6), cp(SBTC)], "(ok u2000)");
 call("admin re-enables", ADMIN, "set-collection", [nft, boolCV(true), uintCV(250), principalCV(ROYALTY)], "(ok true)");
@@ -143,7 +143,7 @@ call("admin de-lists sBTC", ADMIN, "whitelist-ft", [cp(SBTC), boolCV(false)], "(
 evalc("sBTC whitelisted = false", `(is-ft-whitelisted '${SBTC.join(".")})`);
 call("no new sBTC bids", BIDDER, "place-bid", [nft, cp(SBTC), uintCV(1000), uintCV(1)], "(err u303)");
 call("no re-price (would take new escrow)", BIDDER, "update-bid-price", [uintCV(7), cp(SBTC), uintCV(3500)], "(err u303)");
-call("existing bid still fillable", SELLER, "accept-bid", [uintCV(7), uintCV(340), cp(BPEPE), cp(SBTC)], "(ok true)");
+call("existing bid still fillable", SELLER, "accept-bid", [uintCV(7), uintCV(340), cp(BPEPE), cp(SBTC), uintCV(3000)], "(ok true)");
 evalc("#340 -> bidder", owner(340));
 call("bid 8 in PEPE still fine", BIDDER, "place-bid", [nft, cp(PEPE), uintCV(1000), uintCV(1)], "(ok u8)");
 call("cancel bid 8", BIDDER, "cancel-bid", [uintCV(8), cp(PEPE)], "(ok u1000)");
@@ -152,13 +152,13 @@ call("admin re-lists sBTC", ADMIN, "whitelist-ft", [cp(SBTC), boolCV(true)], "(o
 // ---- NFTs that cannot move: Gamma-listed, or escrowed on our own market ----
 call("bid 9: 1,000 sats x2", BIDDER, "place-bid", [nft, cp(SBTC), uintCV(1000), uintCV(2)], "(ok u9)");
 evalc("#334 is listed on Gamma", "(contract-call? 'SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ.bitcoin-pepe get-listing-in-ustx u334)");
-call("Gamma-listed #334 cannot fill: NFT contract refuses transfer (its u106)", SELLER, "accept-bid", [uintCV(9), uintCV(334), cp(BPEPE), cp(SBTC)], "(err u106)");
+call("Gamma-listed #334 cannot fill: NFT contract refuses transfer (its u106)", SELLER, "accept-bid", [uintCV(9), uintCV(334), cp(BPEPE), cp(SBTC), uintCV(1000)], "(err u106)");
 evalc("bid 9 untouched after the revert", "(get-bid u9)");
 evalc("#1499 is held by our pepe-nft-marketplace", owner(1499));
-call("escrowed #1499: our market owns it, NFT contract rejects the transfer", OPERATOR, "accept-bid", [uintCV(9), uintCV(1499), cp(BPEPE), cp(SBTC)], "(err u1)");
+call("escrowed #1499: our market owns it, NFT contract rejects the transfer", OPERATOR, "accept-bid", [uintCV(9), uintCV(1499), cp(BPEPE), cp(SBTC), uintCV(1000)], "(err u1)");
 callOn("operator unlists #1499 from pepe-nft-marketplace", OPERATOR, OUR_MARKET, "unlist-nft", [uintCV(1499), cp(BPEPE)], "(ok true)");
 evalc("#1499 back with operator", owner(1499));
-call("now #1499 fills bid 9", OPERATOR, "accept-bid", [uintCV(9), uintCV(1499), cp(BPEPE), cp(SBTC)], "(ok true)");
+call("now #1499 fills bid 9", OPERATOR, "accept-bid", [uintCV(9), uintCV(1499), cp(BPEPE), cp(SBTC), uintCV(1000)], "(ok true)");
 evalc("#1499 -> bidder", owner(1499));
 call("bidder cancels the rest of bid 9", BIDDER, "cancel-bid", [uintCV(9), cp(SBTC)], "(ok u1000)");
 
@@ -184,7 +184,7 @@ callOn("mint liar #1 to SELLER", RANDOM, LIAR, "mint", [principalCV(SELLER)], "(
 call("admin whitelists liar-nft (the mistake the whitelist must never make)", ADMIN, "set-collection", [principalCV(LIAR), boolCV(true), uintCV(0), principalCV(ROYALTY)], "(ok true)");
 evalc("seller sBTC before liar fill", sbtcBal(SELLER), "SL0");
 call("bid 10: 500 sats on liar-nft", BIDDER, "place-bid", [principalCV(LIAR), cp(SBTC), uintCV(500), uintCV(1)], "(ok u10)");
-call("fill with liar #1: paid although nothing moved (whitelist is the guard)", SELLER, "accept-bid", [uintCV(10), uintCV(1), cp([RANDOM, "liar-nft"]), cp(SBTC)], "(ok true)");
+call("fill with liar #1: paid although nothing moved (whitelist is the guard)", SELLER, "accept-bid", [uintCV(10), uintCV(1), cp([RANDOM, "liar-nft"]), cp(SBTC), uintCV(500)], "(ok true)");
 evalc("liar #1 still with SELLER", `(contract-call? '${LIAR} get-owner u1)`);
 evalc("seller sBTC after liar fill", sbtcBal(SELLER), "SL1");
 evalc("bid 10 consumed", "(get-bid u10)");

@@ -18,7 +18,7 @@ const BIDDER = "SP1NPDHF9CQ8B9Q045CCQS1MR9M9SGJ5TT6WFFCD2";  // 47,035 sats + 42
 const RANDOM = "SP2C7BCAP2NH3EYWCCVHJ6K0DMZBXDFKQ56KR7QN2";  // attacker / new admin / royalty recipient
 const PLATFORM = "SMH8FRN30ERW1SX26NJTJCKTDR3H27NRJ6W75WQE";
 
-const NAME = "fakfun-collection-bids";
+const NAME = "fakfun-collection-bids-v1";
 const CID = `${ADMIN}.${NAME}`;
 const BPEPE = ["SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ", "bitcoin-pepe"];
 const SBTC = ["SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4", "sbtc-token"];
@@ -85,11 +85,12 @@ evalc("escrow held by contract after 2 bids (20,000 sats)", sbtcBal(CID), "E1");
 evalc("quote-fill bid 1", "(quote-fill u1)");
 
 // ---- fill ----
-call("bidder cannot fill own bid", BIDDER, "accept-bid", [uintCV(1), uintCV(137), cp(BPEPE), cp(SBTC)], "(err u311)");
-call("random does not own #139: the NFT contract rejects the transfer", RANDOM, "accept-bid", [uintCV(1), uintCV(139), cp(BPEPE), cp(SBTC)], "(err u1)");
-call("wrong FT for bid 1", SELLER, "accept-bid", [uintCV(1), uintCV(137), cp(BPEPE), cp(PEPE)], "(err u309)");
-call("wrong NFT contract for bid 1", SELLER, "accept-bid", [uintCV(1), uintCV(137), cp(["SP2ZNGJ85ENDY6QRHQ5P2D4FXKGZWCKTB2T0Z55KS", "sbtc-fakfun-amm-lp-v1"]), cp(SBTC)], "(err u308)");
-call("seller fills bid 1 with #137", SELLER, "accept-bid", [uintCV(1), uintCV(137), cp(BPEPE), cp(SBTC)], "(ok true)");
+call("bidder cannot fill own bid", BIDDER, "accept-bid", [uintCV(1), uintCV(137), cp(BPEPE), cp(SBTC), uintCV(10000)], "(err u311)");
+call("random does not own #139: the NFT contract rejects the transfer", RANDOM, "accept-bid", [uintCV(1), uintCV(139), cp(BPEPE), cp(SBTC), uintCV(10000)], "(err u1)");
+call("wrong FT for bid 1", SELLER, "accept-bid", [uintCV(1), uintCV(137), cp(BPEPE), cp(PEPE), uintCV(10000)], "(err u309)");
+call("wrong NFT contract for bid 1", SELLER, "accept-bid", [uintCV(1), uintCV(137), cp(["SP2ZNGJ85ENDY6QRHQ5P2D4FXKGZWCKTB2T0Z55KS", "sbtc-fakfun-amm-lp-v1"]), cp(SBTC), uintCV(10000)], "(err u308)");
+call("stale expected price 9,999 rejected", SELLER, "accept-bid", [uintCV(1), uintCV(137), cp(BPEPE), cp(SBTC), uintCV(9999)], "(err u318)");
+call("seller fills bid 1 with #137", SELLER, "accept-bid", [uintCV(1), uintCV(137), cp(BPEPE), cp(SBTC), uintCV(10000)], "(ok true)");
 evalc("#137 owner is now bidder", owner(137));
 evalc("bid 1 remaining 1", "(get-bid u1)");
 evalc("seller sBTC after fill 1", sbtcBal(SELLER), "S1");
@@ -101,13 +102,13 @@ call("bidder raises bid 1 to 12,000 (tops up 2,000)", BIDDER, "update-bid-price"
 evalc("escrow after raise = 12,000 + PEPE bid (sBTC part)", sbtcBal(CID), "E2");
 call("bidder lowers bid 1 to 8,000 (refund 4,000)", BIDDER, "update-bid-price", [uintCV(1), cp(SBTC), uintCV(8000)], "(ok true)");
 evalc("escrow after lower = 8,000", sbtcBal(CID), "E3");
-call("seller fills bid 1 with #139 at 8,000", SELLER, "accept-bid", [uintCV(1), uintCV(139), cp(BPEPE), cp(SBTC)], "(ok true)");
+call("seller fills bid 1 with #139 at 8,000", SELLER, "accept-bid", [uintCV(1), uintCV(139), cp(BPEPE), cp(SBTC), uintCV(8000)], "(ok true)");
 evalc("bid 1 gone", "(get-bid u1)");
-call("bid 1 cannot be filled again", SELLER, "accept-bid", [uintCV(1), uintCV(178), cp(BPEPE), cp(SBTC)], "(err u306)");
+call("bid 1 cannot be filled again", SELLER, "accept-bid", [uintCV(1), uintCV(178), cp(BPEPE), cp(SBTC), uintCV(8000)], "(err u306)");
 evalc("sBTC escrow drained to 0", sbtcBal(CID), "E4");
 
 // ---- PEPE fill ----
-call("seller fills PEPE bid 2 with #178", SELLER, "accept-bid", [uintCV(2), uintCV(178), cp(BPEPE), cp(PEPE)], "(ok true)");
+call("seller fills PEPE bid 2 with #178", SELLER, "accept-bid", [uintCV(2), uintCV(178), cp(BPEPE), cp(PEPE), uintCV(10_000_000_000)], "(ok true)");
 evalc("#178 owner is now bidder", owner(178));
 
 // ---- cancel ----
@@ -121,10 +122,22 @@ evalc("bid 3 gone", "(get-bid u3)");
 call("bidder: 6,000 sats x1", BIDDER, "place-bid", [principalCV(BPEPE.join(".")), cp(SBTC), uintCV(6000), uintCV(1)], "(ok u4)");
 call("admin pauses", ADMIN, "set-paused", [boolCV(true)], "(ok true)");
 call("no new bids while paused", BIDDER, "place-bid", [principalCV(BPEPE.join(".")), cp(SBTC), uintCV(1000), uintCV(1)], "(err u301)");
-call("no fills while paused", SELLER, "accept-bid", [uintCV(4), uintCV(267), cp(BPEPE), cp(SBTC)], "(err u301)");
+call("no fills while paused", SELLER, "accept-bid", [uintCV(4), uintCV(267), cp(BPEPE), cp(SBTC), uintCV(6000)], "(err u301)");
 call("no re-price while paused", BIDDER, "update-bid-price", [uintCV(4), cp(SBTC), uintCV(7000)], "(err u301)");
 call("cancel still works while paused", BIDDER, "cancel-bid", [uintCV(4), cp(SBTC)], "(ok u6000)");
 call("admin unpauses", ADMIN, "set-paused", [boolCV(false)], "(ok true)");
+
+// ---- Proud Haven replay: re-price down ahead of the seller's accept ----
+call("bidder: 20,000 sats x1 -> bid 5", BIDDER, "place-bid", [principalCV(BPEPE.join(".")), cp(SBTC), uintCV(20000), uintCV(1)], "(ok u5)");
+evalc("escrow 20,000", sbtcBal(CID), "EA1");
+call("bidder front-runs: re-prices bid 5 to 1 sat", BIDDER, "update-bid-price", [uintCV(5), cp(SBTC), uintCV(1)], "(ok true)");
+evalc("escrow 1 sat", sbtcBal(CID), "EA2");
+evalc("seller sBTC before stale accept", sbtcBal(SELLER), "SA0");
+call("seller's accept at 20,000 lands on the 1 sat bid -> ERR-BID-CHANGED", SELLER, "accept-bid", [uintCV(5), uintCV(267), cp(BPEPE), cp(SBTC), uintCV(20000)], "(err u318)");
+evalc("#267 still with seller", owner(267));
+evalc("seller sBTC unchanged", sbtcBal(SELLER), "SA1");
+call("bidder cancels the dust bid", BIDDER, "cancel-bid", [uintCV(5), cp(SBTC)], "(ok u1)");
+evalc("escrow 0", sbtcBal(CID), "EA3");
 
 // ---- admin handover with cooldown ----
 call("random cannot propose", RANDOM, "propose-fakfun", [principalCV(RANDOM)], "(err u300)");

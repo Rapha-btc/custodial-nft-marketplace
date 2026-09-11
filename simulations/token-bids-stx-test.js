@@ -1,7 +1,7 @@
 // token-bids-stx-test.js
-// stxer harness for fakfun-market-registry + fakfun-token-bids-stx (NOT
-// deployed): deploys both from ./contracts at mainnet tip, registers the
-// market, then walks standing per-token bids:
+// stxer harness for fakfun-token-bids-stx-v1 on the live fakfun-market-registry
+// at mainnet tip: default deploys ./contracts/fakfun-token-bids-stx.clar in-sim
+// as fakfun-token-bids-stx-v1, registers the market, then walks standing per-token bids:
 // increment rule (max 2% / 1 STX), top-2 escrow with refund of everyone else,
 // own-raise pays the difference, second re-bids, cancel top -> second promoted,
 // accept -> NFT to top / second refunded / fee split, pause, set-min-increment.
@@ -19,7 +19,7 @@ const B2 = "SM2J5VCY4DCFX6VZYDANHMXA3VN9DMWYCEK7Y8D93";       // ~7,100 STX liqu
 const RANDOM = "SP2C7BCAP2NH3EYWCCVHJ6K0DMZBXDFKQ56KR7QN2";   // 0.04 STX
 const ROYALTY = "SP3A4CP63QJB1R0EJR3TJ1PN16FC5HVJSPT77C8C0";
 const PLATFORM = "SMH8FRN30ERW1SX26NJTJCKTDR3H27NRJ6W75WQE";
-const NAME = "fakfun-token-bids-stx";
+const NAME = "fakfun-token-bids-stx-v1";
 const CID = `${ADMIN}.${NAME}`;
 const REG = "fakfun-market-registry";
 const RID = `${ADMIN}.${REG}`;
@@ -40,15 +40,13 @@ const owner = (i) => `(contract-call? 'SP16SRR777TVB1WS5XSS9QT3YEZEC9JQFKYZENRAJ
 const bidOf = (i) => `(get-token-bid '${BPEPE.join(".")} u${i})`;
 const bid = (label, sender, id, amt, expect) => call(label, sender, "place-bid", [nft, uintCV(id), uintCV(STX(amt))], expect);
 const cancel = (label, sender, id, expect) => call(label, sender, "cancel-bid", [nft, uintCV(id)], expect);
-const accept = (label, sender, id, expect) => call(label, sender, "accept-bid", [uintCV(id), cp(BPEPE)], expect);
+const accept = (label, sender, id, price, expect) => call(label, sender, "accept-bid", [uintCV(id), cp(BPEPE), uintCV(STX(price))], expect);
 
-// DEPLOYED=1 -> run against the live SPV9K21… contracts at mainnet tip
-// (deployed 2026-08-28); default deploys the ./contracts sources in-sim.
+// DEPLOYED=1 -> run against the live SPV9K21….fakfun-token-bids-stx-v1;
+// default deploys ./contracts/fakfun-token-bids-stx.clar in-sim as -v1.
 if (!process.env.DEPLOYED) {
-  for (const n of [REG, NAME]) {
-    b.withSender(ADMIN).addContractDeploy({ contract_name: n, source_code: fs.readFileSync(`./contracts/${n}.clar`, "utf8"), clarity_version: ClarityVersion.Clarity4 });
-    plan.push({ kind: "tx", label: `deploy ${n}`, expect: "(ok true)" });
-  }
+  b.withSender(ADMIN).addContractDeploy({ contract_name: NAME, source_code: fs.readFileSync("./contracts/fakfun-token-bids-stx.clar", "utf8"), clarity_version: ClarityVersion.Clarity4 });
+  plan.push({ kind: "tx", label: `deploy ${NAME}`, expect: "(ok true)" });
 }
 
 reg("random cannot whitelist", RANDOM, "set-collection", [nft, boolCV(true), uintCV(250), principalCV(ROYALTY)], "(err u300)");
@@ -102,29 +100,46 @@ evalc("escrow 102", stxBal(CID), "C9");
 
 // ---- accept ----
 evalc("quote-fill #964", `(quote-fill '${BPEPE.join(".")} u964)`);
-accept("B2 cannot fill own", B2, 964, "(err u311)");
-accept("RANDOM does not own #964", RANDOM, 964, "(err u1)");
-accept("no bid on #1", SELLER, 1, "(err u306)");
-accept("seller accepts 102 for #964", SELLER, 964, "(ok true)");
+accept("B2 cannot fill own", B2, 964, 102, "(err u311)");
+accept("RANDOM does not own #964", RANDOM, 964, 102, "(err u1)");
+accept("no bid on #1", SELLER, 1, 1, "(err u306)");
+accept("stale price 100 rejected (top is 102)", SELLER, 964, 100, "(err u321)");
+evalc("#964 still with seller after stale accept", owner(964));
+accept("seller accepts 102 for #964", SELLER, 964, 102, "(ok true)");
 evalc("#964 -> B2", owner(964));
 evalc("bid #964 gone", bidOf(964));
 evalc("escrow 0", stxBal(CID), "C10");
-accept("cannot accept twice", SELLER, 964, "(err u306)");
+accept("cannot accept twice", SELLER, 964, 102, "(err u306)");
 
 // ---- accept with a second standing: second refunded ----
 bid("B1 20 on #967", B1, 967, 20, "(ok true)");
 bid("B2 25 on #967", B2, 967, 25, "(ok true)");
 evalc("escrow 45", stxBal(CID), "C11");
-accept("seller accepts 25 for #967, B1 refunded 20", SELLER, 967, "(ok true)");
+accept("seller accepts 25 for #967, B1 refunded 20", SELLER, 967, 25, "(ok true)");
 evalc("#967 -> B2", owner(967));
 evalc("escrow 0", stxBal(CID), "C12");
+
+// ---- Proud Haven replay: cancel-and-promote ahead of the seller's accept ----
+bid("attacker A (B1) 1 uSTX on #901 (first bid, no floor)", B1, 901, 0.000001, "(ok true)");
+bid("attacker B (B2) 100 STX on #901 -> top B2, second B1 dust", B2, 901, 100, "(ok true)");
+evalc("bid #901: top B2 100 / second B1 u1", bidOf(901));
+evalc("escrow 100.000001", stxBal(CID), "CA1");
+cancel("B2 front-runs: cancels top -> B1 dust promoted", B2, 901, "(ok true)");
+evalc("bid #901: top B1 u1 / second none", bidOf(901));
+evalc("seller before stale accept", stxBal(SELLER), "SA0");
+accept("seller's accept at 100 lands on the dust bid -> ERR-BID-CHANGED", SELLER, 901, 100, "(err u321)");
+evalc("#901 still with seller", owner(901));
+evalc("seller unchanged (minus tx fee)", stxBal(SELLER), "SA1");
+evalc("bid #901 still B1 u1", bidOf(901));
+cancel("B1 cancels dust", B1, 901, "(ok true)");
+evalc("escrow 0", stxBal(CID), "CA2");
 
 // ---- pause ----
 bid("B1 5 on #1654", B1, 1654, 5, "(ok true)");
 reg("admin pauses registry (global)", ADMIN, "set-paused", [boolCV(true)], "(ok true)");
 evalc("market not live", "(is-live)");
 bid("no bids while registry paused", B2, 1654, 6, "(err u301)");
-accept("no accept while registry paused", SELLER, 1654, "(err u301)");
+accept("no accept while registry paused", SELLER, 1654, 5, "(err u301)");
 reg("admin unpauses registry", ADMIN, "set-paused", [boolCV(false)], "(ok true)");
 reg("admin unregisters this market only", ADMIN, "set-market", [principalCV(CID), boolCV(false)], "(ok true)");
 evalc("market not live", "(is-live)");
@@ -151,7 +166,7 @@ evalc("bid #901 gone", bidOf(901));
 bid("B1 3 on #1654", B1, 1654, 3, "(ok true)");
 reg("admin disables bitcoin-pepe", ADMIN, "set-collection", [nft, boolCV(false), uintCV(250), principalCV(ROYALTY)], "(ok true)");
 bid("no new bids", B2, 1654, 5, "(err u302)");
-accept("accept blocked while disabled", SELLER, 1654, "(err u302)");
+accept("accept blocked while disabled", SELLER, 1654, 3, "(err u302)");
 cancel("cancel still works", B1, 1654, "(ok true)");
 
 // ---- admin handover lives in the registry and flows to the market ----
@@ -194,6 +209,9 @@ const checks = [
   ["escrow C10 = 0", d("C10", "C0"), 0n],
   ["escrow C11 = 45", d("C11", "C0"), BigInt(STX(45))],
   ["escrow C12 = 0", d("C12", "C0"), 0n],
+  ["replay: escrow 100.000001 after A dust + B 100", d("CA1", "C0"), BigInt(STX(100)) + 1n],
+  ["replay: #901 NFT never moved, seller only paid a tx fee", between(d("SA1", "SA0"), BigInt(STX(-1)), 0n), true],
+  ["replay: escrow 0 after A cancels dust", d("CA2", "C0"), 0n],
   ["contract holds nothing at end", d("C13", "C0"), 0n],
   ["seller +120.65 STX minus tx fees", between(d("S1", "S0"), BigInt(STX(120)), BigInt(STX(120.65))), true],
   ["B2 -127 STX minus tx fees", between(d("Z1", "Z0"), BigInt(STX(-128)), BigInt(STX(-127))), true],
