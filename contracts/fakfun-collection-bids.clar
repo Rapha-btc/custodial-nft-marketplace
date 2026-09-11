@@ -24,6 +24,7 @@
 (define-constant ERR-INVALID-ADMIN (err u314))
 (define-constant ERR-NO-PROPOSAL (err u315))
 (define-constant ERR-COOLDOWN (err u316))
+(define-constant ERR-BID-CHANGED (err u318))
 
 (define-data-var fakfun principal 'SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22)
 (define-data-var pending-fakfun (optional {
@@ -317,6 +318,7 @@
     (token-id uint)
     (nft <nft-trait>)
     (ft <ft-trait>)
+    (expected-price uint)
   )
   (let (
       (seller tx-sender)
@@ -338,6 +340,7 @@
     (asserts! (is-eq nft-principal (get nft-contract bid)) ERR-WRONG-NFT)
     (asserts! (is-eq ft-principal (get ft-contract bid)) ERR-WRONG-FT)
     (asserts! (not (is-eq seller bidder)) ERR-CANNOT-FILL-OWN)
+    (asserts! (is-eq price expected-price) ERR-BID-CHANGED)
 
     (if (is-eq remaining u1)
       (map-delete bids bid-id)

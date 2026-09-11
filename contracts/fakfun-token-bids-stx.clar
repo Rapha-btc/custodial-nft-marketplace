@@ -12,6 +12,7 @@
 (define-constant ERR-CANNOT-FILL-OWN (err u311))
 (define-constant ERR-FEE-TOO-HIGH (err u313))
 (define-constant ERR-BID-TOO-LOW (err u320))
+(define-constant ERR-BID-CHANGED (err u321))
 
 (define-data-var min-increment-bps uint u200)
 (define-data-var min-increment-abs uint u1000000)
@@ -226,6 +227,7 @@
 (define-public (accept-bid
     (token-id uint)
     (nft <nft-trait>)
+    (expected-price uint)
   )
   (let (
       (seller tx-sender)
@@ -247,6 +249,7 @@
       ERR-COLLECTION-NOT-WHITELISTED
     )
     (asserts! (not (is-eq seller bidder)) ERR-CANNOT-FILL-OWN)
+    (asserts! (is-eq price expected-price) ERR-BID-CHANGED)
     (map-delete token-bids key)
     (try! (contract-call? nft transfer token-id seller bidder))
     (try! (pay-out seller (get seller-receives q)))
