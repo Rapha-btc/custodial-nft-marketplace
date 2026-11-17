@@ -120,6 +120,41 @@ call("R1 send-many-to pepe [1054,1447] -> R2 (ok u2)", R1, "send-many-to",
 ownerIs("pepe", 1054, R2);
 ownerIs("pepe", 1447, R2);
 
+// ---- send-mixed: flat list, each item = own collection + id + recipient ----
+// state now: R2 owns pepe 1923,1054,1447 + giga 1913,1665,1860,1741
+//            R1 owns invaders 2873,3282 + roo 12,10,9 + pepe 255
+const mixed = (arr) => listCV(arr.map(([c, id, r]) =>
+  tupleCV({ nft: cp(C[c]), id: uintCV(id), recipient: sp(r) })));
+
+call("send-mixed empty -> ERR_EMPTY u100", R2, "send-mixed", [mixed([])], "(err u100)");
+call("send-mixed [pepe 1923->R1, giga 1913->R2(self)] -> u101, nothing moves", R2, "send-mixed",
+  [mixed([["pepe", 1923, R1], ["giga", 1913, R2]])], "(err u101)");
+ownerIs("pepe", 1923, R2);
+call("send-mixed [giga 1913->R1, roo 12 (not R2's)->R1] -> err, nothing moves", R2, "send-mixed",
+  [mixed([["giga", 1913, R1], ["roo", 12, R1]])], /^\(err u\d+\)$/);
+ownerIs("giga", 1913, R2);
+ownerIs("roo", 12, R1);
+
+// many collections, many recipients
+call("send-mixed R2 [pepe 1923->R1, giga 1913->HOLDER, giga 1665->R1, pepe 1054->STRANGER] -> (ok u4)  [ONE TX, 2 COLL, 3 RECIPIENTS]",
+  R2, "send-mixed",
+  [mixed([["pepe", 1923, R1], ["giga", 1913, HOLDER], ["giga", 1665, R1], ["pepe", 1054, STRANGER]])], "(ok u4)");
+ownerIs("pepe", 1923, R1);
+ownerIs("giga", 1913, HOLDER);
+ownerIs("giga", 1665, R1);
+ownerIs("pepe", 1054, STRANGER);
+ownerIs("giga", 1860, R2); // untouched
+
+// many collections, ONE recipient
+call("send-mixed R1 [invaders 2873, roo 12, roo 10, pepe 255] all -> R2 (ok u4)  [ONE TX, 3 COLL, 1 RECIPIENT]",
+  R1, "send-mixed",
+  [mixed([["invaders", 2873, R2], ["roo", 12, R2], ["roo", 10, R2], ["pepe", 255, R2]])], "(ok u4)");
+ownerIs("invaders", 2873, R2);
+ownerIs("roo", 12, R2);
+ownerIs("roo", 10, R2);
+ownerIs("pepe", 255, R2);
+ownerIs("roo", 9, R1); // untouched
+
 // ---- BNS-V2 (informational: does its transfer accept a contract-call?) ----
 call("INFO: send-many-to BNS-V2 [379302] -> R1", HOLDER, "send-many-to",
   [cp(C.bns), ids([379302]), sp(R1)], undefined);
