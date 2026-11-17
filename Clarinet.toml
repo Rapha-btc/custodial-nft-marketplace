@@ -56,3 +56,8 @@ epoch = 3.3
 path = "contracts/fakfun-auctions-stx.clar"
 clarity_version = 4
 epoch = 3.3
+
+[contracts.nft-dispatch]
+path = "contracts/nft-dispatch.clar"
+clarity_version = 5
+epoch = 'latest'
